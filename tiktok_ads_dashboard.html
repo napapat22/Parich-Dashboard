@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TikTok Ads Dashboard – Parich</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #010101;
+  --surface: #111111;
+  --surface2: #1a1a1a;
+  --border: #2a2a2a;
+  --teal: #69C9D0;
+  --pink: #EE1D52;
+  --white: #ffffff;
+  --gray: #888888;
+  --gray2: #555555;
+  --green: #00D26A;
+  --yellow: #FFD60A;
+  --font: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--white); font-family: var(--font); font-size: 13px; min-height: 100vh; }
+
+/* LOADING */
+#loading { position:fixed; inset:0; background:var(--bg); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:999; gap:12px; }
+#loading .spinner { width:36px; height:36px; border:3px solid var(--border); border-top-color:var(--teal); border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+#loading p { color:var(--gray); font-size:12px; }
+
+/* HEADER */
+.header { display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid var(--border); background:var(--surface); position:sticky; top:0; z-index:100; }
+.header-left { display:flex; align-items:center; gap:10px; }
+.header-title { font-size:15px; font-weight:700; letter-spacing:-0.3px; }
+.header-subtitle { font-size:11px; color:var(--gray); margin-top:1px; }
+.header-right { display:flex; align-items:center; gap:10px; }
+.data-badge { font-size:10px; padding:3px 8px; border-radius:20px; background:rgba(105,201,208,0.12); color:var(--teal); border:1px solid rgba(105,201,208,0.3); }
+.last-updated { font-size:10px; color:var(--gray); }
+
+/* FILTER BAR */
+.filter-bar { display:flex; align-items:center; gap:16px; padding:10px 20px; border-bottom:1px solid var(--border); background:var(--surface); flex-wrap:wrap; }
+.filter-group { display:flex; align-items:center; gap:6px; }
+.filter-label { font-size:10px; color:var(--gray); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; white-space:nowrap; }
+.chip-row { display:flex; gap:4px; flex-wrap:wrap; }
+.chip { padding:4px 10px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--gray); font-size:11px; font-weight:500; cursor:pointer; transition:all 0.15s; white-space:nowrap; font-family:var(--font); }
+.chip:hover { border-color:var(--teal); color:var(--teal); }
+.chip.active { background:var(--teal); border-color:var(--teal); color:#000; font-weight:700; }
+.chip.pink.active { background:var(--pink); border-color:var(--pink); color:#fff; }
+.filter-divider { width:1px; height:24px; background:var(--border); }
+
+/* TABS */
+.tab-nav { display:flex; padding:0 20px; background:var(--surface); border-bottom:1px solid var(--border); }
+.tab-btn { padding:11px 18px; font-size:12px; font-weight:600; color:var(--gray); background:none; border:none; border-bottom:2px solid transparent; cursor:pointer; transition:all 0.15s; font-family:var(--font); white-space:nowrap; }
+.tab-btn:hover { color:var(--white); }
+.tab-btn.active { color:var(--teal); border-bottom-color:var(--teal); }
+.tab-panel { display:none; padding:18px 20px; }
+.tab-panel.active { display:block; }
+
+/* KPI GRID */
+.kpi-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:16px; }
+@media(max-width:900px){ .kpi-grid { grid-template-columns:repeat(3,1fr); } }
+.kpi-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; position:relative; overflow:hidden; }
+.kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--teal); }
+.kpi-card.pink::before { background:var(--pink); }
+.kpi-card.green::before { background:var(--green); }
+.kpi-card.yellow::before { background:var(--yellow); }
+.kpi-label { font-size:10px; color:var(--gray); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; }
+.kpi-value { font-size:22px; font-weight:800; letter-spacing:-0.5px; line-height:1; }
+.kpi-sub { font-size:10px; color:var(--gray); margin-top:5px; }
+
+/* LAYOUT */
+.section-row { display:grid; gap:12px; margin-bottom:12px; }
+.cols-2 { grid-template-columns:1fr 1fr; }
+.cols-3 { grid-template-columns:1fr 1fr 1fr; }
+.cols-21 { grid-template-columns:2fr 1fr; }
+@media(max-width:800px){ .cols-2,.cols-3,.cols-21 { grid-template-columns:1fr; } }
+
+/* CHART CARDS */
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; }
+.chart-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.chart-title { font-size:12px; font-weight:700; }
+.chart-meta { font-size:10px; color:var(--gray); }
+.chart-body canvas { max-height:220px !important; }
+.chart-body.tall canvas { max-height:280px !important; }
+
+/* INSIGHT CARDS */
+.insight-row { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px; }
+@media(max-width:700px){ .insight-row { grid-template-columns:1fr; } }
+.insight-card { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px 16px; display:flex; align-items:center; gap:12px; }
+.insight-icon { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.insight-icon.teal { background:rgba(105,201,208,0.12); }
+.insight-icon.pink { background:rgba(238,29,82,0.12); }
+.insight-icon.green { background:rgba(0,210,106,0.12); }
+.insight-info { min-width:0; }
+.insight-label { font-size:10px; color:var(--gray); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:3px; }
+.insight-val { font-size:14px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.insight-sub { font-size:10px; color:var(--gray); margin-top:2px; }
+
+/* TABLE */
+.table-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.table-toolbar { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px; }
+.table-title { font-size:12px; font-weight:700; }
+.table-controls { display:flex; align-items:center; gap:8px; }
+.table-controls label { font-size:11px; color:var(--gray); }
+.row-limit-select { background:var(--surface2); border:1px solid var(--border); color:var(--white); border-radius:6px; padding:4px 8px; font-size:11px; font-family:var(--font); cursor:pointer; }
+.table-search { background:var(--surface2); border:1px solid var(--border); color:var(--white); border-radius:6px; padding:4px 10px; font-size:11px; font-family:var(--font); width:160px; outline:none; }
+.table-search::placeholder { color:var(--gray2); }
+.table-search:focus { border-color:var(--teal); }
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:11px; }
+thead tr { background:var(--surface2); }
+th { padding:9px 12px; text-align:left; font-size:10px; font-weight:700; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px; cursor:pointer; white-space:nowrap; user-select:none; border-bottom:1px solid var(--border); }
+th:hover { color:var(--teal); }
+th.sorted-asc::after { content:' ▲'; font-size:8px; color:var(--teal); }
+th.sorted-desc::after { content:' ▼'; font-size:8px; color:var(--teal); }
+td { padding:9px 12px; border-bottom:1px solid var(--border); color:var(--white); white-space:nowrap; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(255,255,255,0.03); }
+.badge { display:inline-block; padding:2px 7px; border-radius:4px; font-size:10px; font-weight:700; }
+.badge.spark { background:rgba(105,201,208,0.15); color:var(--teal); border:1px solid rgba(105,201,208,0.3); }
+.badge.infeed { background:rgba(238,29,82,0.12); color:var(--pink); border:1px solid rgba(238,29,82,0.25); }
+.table-footer { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-top:1px solid var(--border); }
+.table-info { font-size:10px; color:var(--gray); }
+.table-pager { display:flex; gap:4px; }
+.page-btn { width:26px; height:26px; border-radius:6px; border:1px solid var(--border); background:none; color:var(--gray); font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-family:var(--font); transition:all 0.1s; }
+.page-btn:hover { border-color:var(--teal); color:var(--teal); }
+.page-btn.active { background:var(--teal); border-color:var(--teal); color:#000; font-weight:700; }
+
+/* MONTHLY ACCORDION */
+.month-detail { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:10px; }
+.month-header { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid transparent; cursor:pointer; flex-wrap:wrap; gap:8px; }
+.month-header:hover { background:rgba(255,255,255,0.02); }
+.month-header.open { border-bottom-color:var(--border); }
+.month-name { font-size:13px; font-weight:700; min-width:90px; }
+.month-quick { display:flex; gap:20px; flex-wrap:wrap; }
+.month-quick-item { text-align:right; }
+.month-quick-label { font-size:9px; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px; }
+.month-quick-value { font-size:12px; font-weight:700; }
+.month-body { display:none; padding:12px 16px 16px; }
+.month-body.open { display:block; }
+
+/* UTILS */
+.benchmark-notice { background:rgba(255,214,10,0.08); border:1px solid rgba(255,214,10,0.2); border-radius:8px; padding:8px 12px; font-size:10px; color:rgba(255,214,10,0.9); margin-top:12px; }
+.no-data { display:flex; align-items:center; justify-content:center; height:80px; color:var(--gray); font-size:11px; }
+.mom-up { color:#00D26A; }
+.mom-down { color:#EE1D52; }
+.donut-legend { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+.legend-item { display:flex; align-items:center; justify-content:space-between; }
+.legend-left { display:flex; align-items:center; gap:7px; }
+.legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p id="loading-text">Loading campaign data…</p>
+</div>
+
+<div id="app" style="display:none;">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <svg width="22" height="22" viewBox="0 0 32 32" fill="none"><path d="M21.4 6C21.7 8.5 23.3 10.2 25.8 10.4V13.2C24.2 13.2 22.7 12.6 21.4 11.7V19.7C21.4 23.8 18.1 27.1 14 27.1C9.9 27.1 6.6 23.8 6.6 19.7C6.6 15.6 9.9 12.3 14 12.3V15.3C11.5 15.3 9.5 17.2 9.5 19.7C9.5 22.2 11.5 24.2 14 24.2C16.5 24.2 18.5 22.2 18.5 19.7V5H21.4V6Z" fill="#69C9D0"/></svg>
+    <div>
+      <div class="header-title">TikTok Ads Dashboard</div>
+      <div class="header-subtitle">Parich · Campaign INT Z1 · Jan–Jun 2026</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="data-badge" id="data-source-badge">● Drive Data</span>
+    <span class="last-updated" id="last-updated-text"></span>
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <div class="filter-group">
+    <span class="filter-label">Month</span>
+    <div class="chip-row" id="month-chips">
+      <button class="chip active" data-month="all">All</button>
+      <button class="chip" data-month="0">Jan</button>
+      <button class="chip" data-month="1">Feb</button>
+      <button class="chip" data-month="2">Mar</button>
+      <button class="chip" data-month="3">Apr</button>
+      <button class="chip" data-month="4">May</button>
+      <button class="chip" data-month="5">Jun</button>
+    </div>
+  </div>
+  <div class="filter-divider"></div>
+  <div class="filter-group">
+    <span class="filter-label">Format</span>
+    <div class="chip-row" id="format-chips">
+      <button class="chip active" data-format="all">All</button>
+      <button class="chip" data-format="Spark Ads">Spark Ads</button>
+      <button class="chip pink" data-format="In-Feed Ads">In-Feed Ads</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAB NAV -->
+<div class="tab-nav">
+  <button class="tab-btn active" data-tab="overview">Overview</button>
+  <button class="tab-btn" data-tab="creatives">Creative Performance</button>
+  <button class="tab-btn" data-tab="monthly">Monthly Breakdown</button>
+</div>
+
+<!-- ===== TAB: OVERVIEW ===== -->
+<div class="tab-panel active" id="tab-overview">
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">Total Spend</div><div class="kpi-value" id="kpi-spend">–</div><div class="kpi-sub" id="kpi-spend-sub">–</div></div>
+    <div class="kpi-card"><div class="kpi-label">Impressions</div><div class="kpi-value" id="kpi-imp">–</div><div class="kpi-sub" id="kpi-imp-sub">–</div></div>
+    <div class="kpi-card pink"><div class="kpi-label">CPM</div><div class="kpi-value" id="kpi-cpm">–</div><div class="kpi-sub" id="kpi-cpm-sub">avg cost per 1,000 impr.</div></div>
+    <div class="kpi-card"><div class="kpi-label">CTR</div><div class="kpi-value" id="kpi-ctr">–</div><div class="kpi-sub" id="kpi-ctr-sub">–</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Video Views</div><div class="kpi-value" id="kpi-views">–</div><div class="kpi-sub" id="kpi-views-sub">–</div></div>
+    <div class="kpi-card yellow"><div class="kpi-label">Cost / Result</div><div class="kpi-value" id="kpi-cpr">–</div><div class="kpi-sub">cost per video view</div></div>
+  </div>
+
+  <div class="insight-row">
+    <div class="insight-card"><div class="insight-icon teal">🏆</div><div class="insight-info"><div class="insight-label">Peak Spend Month</div><div class="insight-val" id="ins-peak-month">–</div><div class="insight-sub" id="ins-peak-val">–</div></div></div>
+    <div class="insight-card"><div class="insight-icon pink">📈</div><div class="insight-info"><div class="insight-label">Best CTR Month</div><div class="insight-val" id="ins-best-ctr-month">–</div><div class="insight-sub" id="ins-best-ctr-val">–</div></div></div>
+    <div class="insight-card"><div class="insight-icon green">💡</div><div class="insight-info"><div class="insight-label">Best Efficiency Month</div><div class="insight-val" id="ins-best-eff-month">–</div><div class="insight-sub" id="ins-best-eff-val">–</div></div></div>
+  </div>
+
+  <div class="section-row cols-21">
+    <div class="chart-card">
+      <div class="chart-header"><span class="chart-title">Monthly Spend</span><span class="chart-meta">฿ THB</span></div>
+      <div class="chart-body"><canvas id="chart-spend"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header"><span class="chart-title">Ad Format Mix</span><span class="chart-meta">by Spend</span></div>
+      <div style="display:flex;flex-direction:column;justify-content:center;">
+        <canvas id="chart-format" style="max-height:150px;"></canvas>
+        <div class="donut-legend" id="donut-legend"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-row cols-2">
+    <div class="chart-card">
+      <div class="chart-header"><span class="chart-title">CTR Trend</span><span class="chart-meta">% Click-Through Rate</span></div>
+      <div class="chart-body"><canvas id="chart-ctr"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header"><span class="chart-title">CPM Trend</span><span class="chart-meta">฿ Cost per 1,000 Impressions</span></div>
+      <div class="chart-body"><canvas id="chart-cpm"></canvas></div>
+    </div>
+  </div>
+
+  <div class="benchmark-notice">⚠️ ROAS, Purchases, and video engagement metrics (Watch Time, Hook Rate, etc.) are not tracked in TikTok campaign-level reports. Shown data reflects available campaign metrics only.</div>
+</div>
+
+<!-- ===== TAB: CREATIVE PERFORMANCE ===== -->
+<div class="tab-panel" id="tab-creatives">
+  <div class="insight-row">
+    <div class="insight-card"><div class="insight-icon teal">💰</div><div class="insight-info"><div class="insight-label">Top Spend Creative</div><div class="insight-val" id="ins-top-spend">–</div><div class="insight-sub" id="ins-top-spend-val">–</div></div></div>
+    <div class="insight-card"><div class="insight-icon pink">🎯</div><div class="insight-info"><div class="insight-label">Best CTR Creative</div><div class="insight-val" id="ins-top-ctr">–</div><div class="insight-sub" id="ins-top-ctr-val">–</div></div></div>
+    <div class="insight-card"><div class="insight-icon green">⚡</div><div class="insight-info"><div class="insight-label">Best Cost / Result</div><div class="insight-val" id="ins-top-cpr">–</div><div class="insight-sub" id="ins-top-cpr-val">–</div></div></div>
+  </div>
+
+  <div class="section-row cols-2">
+    <div class="chart-card">
+      <div class="chart-header"><span class="chart-title">Spend by Creative</span><span class="chart-meta">฿ THB</span></div>
+      <div class="chart-body tall"><canvas id="chart-creative-spend"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header"><span class="chart-title">Video Views by Creative</span><span class="chart-meta">Results count</span></div>
+      <div class="chart-body tall"><canvas id="chart-creative-views"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-row cols-2" style="margin-bottom:16px;">
+    <div class="chart-card">
+      <div class="chart-header"><span class="chart-title">CTR by Creative</span><span class="chart-meta">%</span></div>
+      <div class="chart-body tall"><canvas id="chart-creative-ctr"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header"><span class="chart-title">CPM by Creative</span><span class="chart-meta">฿ per 1,000 Impressions</span></div>
+      <div class="chart-body tall"><canvas id="chart-creative-cpm"></canvas></div>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-toolbar">
+      <span class="table-title">All Creatives</span>
+      <div class="table-controls">
+        <input type="text" class="table-search" id="creative-search" placeholder="Search creative…">
+        <label>Rows:</label>
+        <select class="row-limit-select" id="creative-row-limit">
+          <option value="10">10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+          <option value="999">All</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="creative-table">
+        <thead>
+          <tr>
+            <th data-col="name">Creative</th>
+            <th data-col="format">Format</th>
+            <th data-col="spend">Spend ฿</th>
+            <th data-col="imp">Impressions</th>
+            <th data-col="ctr">CTR %</th>
+            <th data-col="cpm">CPM ฿</th>
+            <th data-col="views">Video Views</th>
+            <th data-col="cpr">Cost/Result ฿</th>
+          </tr>
+        </thead>
+        <tbody id="creative-tbody"></tbody>
+      </table>
+    </div>
+    <div class="table-footer">
+      <span class="table-info" id="creative-table-info">–</span>
+      <div class="table-pager" id="creative-pager"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB: MONTHLY BREAKDOWN ===== -->
+<div class="tab-panel" id="tab-monthly">
+  <div class="section-row cols-2" style="margin-bottom:16px;">
+    <div class="chart-card">
+      <div class="chart-header"><span class="chart-title">Spend vs. Video Views</span><span class="chart-meta">Dual Axis</span></div>
+      <div class="chart-body tall"><canvas id="chart-dual"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header"><span class="chart-title">Impressions by Month</span><span class="chart-meta">Total reach</span></div>
+      <div class="chart-body tall"><canvas id="chart-imp-trend"></canvas></div>
+    </div>
+  </div>
+  <div id="monthly-accordion"></div>
+</div>
+
+</div><!-- end #app -->
+
+<script>
+// =====================================================================
+// DATA — extracted from Google Drive folder 18ST6UHVBdjpUjb81WlJkTfTrvzS5ct6k
+// "Parich Tiktok Ads Account-Campaign Report" monthly XLSX files, Jan–Jun 2026
+// Synced 2026-07-15
+// =====================================================================
+const DRIVE_DATA = {
+  monthly: [
+    { label:'Jan 2026', spend:30734.76, imp:865238, clicks:1841, ctr:0.21, cpm:35.52, ads:[
+        {n:'อ้อย พี่ชุม',          spend:4817.76,  imp:144429, ctr:0.22, cpm:33.36, res:10190},
+        {n:'อ้อย เฮียจี้',         spend:14595.73, imp:429037, ctr:0.24, cpm:34.02, res:31175},
+        {n:'อ้อย ผู้ใหญ่บ้านมะลิ', spend:11321.27, imp:291772, ctr:0.17, cpm:38.80, res:18438},
+    ]},
+    { label:'Feb 2026', spend:27991.89, imp:689007, clicks:1410, ctr:0.20, cpm:40.63, ads:[
+        {n:'อ้อย พี่หน้าเป็นปาน',  spend:24071.64, imp:608360, ctr:0.20, cpm:39.57, res:29226},
+        {n:'ชาวไร่อ้อยใช้พาริช',    spend:3919.65,  imp:80642,  ctr:0.21, cpm:48.61, res:4677},
+        {n:'อ้อย เฮียจี้',         spend:0.60,     imp:3,      ctr:0.00, cpm:200.00, res:1},
+    ]},
+    { label:'Mar 2026', spend:31116.37, imp:700554, clicks:1953, ctr:0.28, cpm:44.42, ads:[
+        {n:'อ้อย พี่แสง',           spend:9393.87,  imp:227001, ctr:0.29, cpm:41.38, res:16245},
+        {n:'อ้อย พี่อรุณ',          spend:16239.89, imp:351433, ctr:0.29, cpm:46.21, res:30257},
+        {n:'อ้อย พี่หน้าเป็นปาน',  spend:4560.36,  imp:104187, ctr:0.21, cpm:43.77, res:4931},
+        {n:'ชาวไร่อ้อยใช้พาริช',    spend:922.25,   imp:17933,  ctr:0.30, cpm:51.43, res:1001},
+    ]},
+    { label:'Apr 2026', spend:21157.64, imp:529740, clicks:1339, ctr:0.25, cpm:39.94, ads:[
+        {n:'อ้อย พี่แสง',           spend:9759.76,  imp:262191, ctr:0.25, cpm:37.22, res:15142},
+        {n:'อ้อย พี่อรุณ',          spend:11397.88, imp:267549, ctr:0.26, cpm:42.60, res:18621},
+    ]},
+    { label:'May 2026', spend:30756.72, imp:765555, clicks:1835, ctr:0.24, cpm:40.18, ads:[
+        {n:'อ้อย โก๊ะเงี๊ยบ',      spend:4958.00,  imp:128807, ctr:0.25, cpm:38.49, res:8839},
+        {n:'อ้อย โก๊ะกบ',           spend:25798.72, imp:636746, ctr:0.24, cpm:40.52, res:50170},
+    ]},
+    { label:'Jun 2026', spend:14011.12, imp:375545, clicks:856,  ctr:0.23, cpm:37.31, ads:[
+        {n:'อ้อย โก๊ะเงี๊ยบ',      spend:2558.71,  imp:74743,  ctr:0.19, cpm:34.23, res:4401},
+        {n:'อ้อย โก๊ะกบ',           spend:11452.41, imp:300802, ctr:0.24, cpm:38.07, res:19994},
+    ]},
+  ]
+};
+
+const FORMAT_MAP = {
+  'อ้อย โก๊ะเงี๊ยบ':'Spark Ads','อ้อย โก๊ะกบ':'Spark Ads',
+  'อ้อย พี่แสง':'Spark Ads','อ้อย พี่อรุณ':'Spark Ads',
+  'อ้อย พี่ชุม':'Spark Ads','อ้อย เฮียจี้':'Spark Ads',
+  'อ้อย ผู้ใหญ่บ้านมะลิ':'Spark Ads',
+  'อ้อย พี่หน้าเป็นปาน':'In-Feed Ads',
+  'ชาวไร่อ้อยใช้พาริช':'In-Feed Ads',
+};
+const NAME_MAP = {
+  'อ้อย โก๊ะเงี๊ยบ':'Aoi – Ko-Ngiab',
+  'อ้อย โก๊ะกบ':'Aoi – Ko-Kob',
+  'อ้อย พี่แสง':'Aoi – Pi Saeng',
+  'อ้อย พี่อรุณ':'Aoi – Pi Aroon',
+  'อ้อย พี่ชุม':'Aoi – Pi Chum',
+  'อ้อย เฮียจี้':'Aoi – Hia Ji',
+  'อ้อย ผู้ใหญ่บ้านมะลิ':'Aoi – Puyai Mali',
+  'อ้อย พี่หน้าเป็นปาน':'Aoi – Pi Na-Pan',
+  'ชาวไร่อ้อยใช้พาริช':'Cane Farmer × Parich',
+};
+
+// =====================================================================
+// STATE
+// =====================================================================
+let DATA = null;
+let activeMonths = new Set(['all']);
+let activeFormat = 'all';
+let chartInstances = {};
+let creativeSort = { col:'spend', dir:'desc' };
+let creativePage = 1;
+let creativeRowLimit = 10;
+let creativeSearch = '';
+
+// Chart.js defaults
+Chart.defaults.color = '#888888';
+Chart.defaults.borderColor = '#2a2a2a';
+Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Inter',sans-serif";
+Chart.defaults.font.size = 11;
+
+// Color constants
+const TEAL='#69C9D0', PINK='#EE1D52', GREEN='#00D26A', YELLOW='#FFD60A';
+const PURPLE='#8B5CF6', ORANGE='#F97316', BLUE='#06B6D4';
+
+// =====================================================================
+// FILTER HELPERS
+// =====================================================================
+function getMonths() {
+  if (!DATA) return [];
+  return activeMonths.has('all') ? DATA.monthly : DATA.monthly.filter((_,i)=>activeMonths.has(String(i)));
+}
+
+function getAds() {
+  const map = {};
+  getMonths().forEach(mo => {
+    mo.ads.forEach(ad => {
+      const fmt = FORMAT_MAP[ad.n]||'Spark Ads';
+      if (activeFormat!=='all' && fmt!==activeFormat) return;
+      if (!map[ad.n]) map[ad.n]={n:ad.n,spend:0,imp:0,res:0,ctr_sum:0,ctr_cnt:0,fmt};
+      map[ad.n].spend+=ad.spend; map[ad.n].imp+=ad.imp; map[ad.n].res+=ad.res;
+      map[ad.n].ctr_sum+=ad.ctr; map[ad.n].ctr_cnt++;
+    });
+  });
+  return Object.values(map).map(r=>({
+    ...r,
+    cpm:r.imp>0?r.spend/r.imp*1000:0,
+    ctr_avg:r.ctr_cnt>0?r.ctr_sum/r.ctr_cnt:0,
+    cpr:r.res>0?r.spend/r.res:0,
+  }));
+}
+
+// =====================================================================
+// FORMAT HELPERS
+// =====================================================================
+const fmtN = (n,d=0) => n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(d||1)+'K':n.toFixed(d);
+const fmtB = n => '฿'+n.toLocaleString('en',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtBK = n => n>=1e6?'฿'+(n/1e6).toFixed(2)+'M':'฿'+(n/1e3).toFixed(1)+'K';
+const fmtP = n => n.toFixed(2)+'%';
+const momHtml = (curr,prev) => {
+  if(!prev) return '';
+  const p=((curr-prev)/prev*100).toFixed(1);
+  return p>=0?`<span class="mom-up">▲${p}%</span>`:`<span class="mom-down">▼${Math.abs(p)}%</span>`;
+};
+
+// =====================================================================
+// RENDER ALL
+// =====================================================================
+function renderAll() {
+  renderKPIs();
+  renderInsightsOverview();
+  renderSpendChart();
+  renderFormatChart();
+  renderCTRChart();
+  renderCPMChart();
+  renderCreativeInsights();
+  renderCreativeCharts();
+  renderCreativeTable();
+  renderDualChart();
+  renderImpChart();
+  renderMonthlyAccordion();
+}
+
+// KPIs
+function renderKPIs() {
+  const mo = getMonths();
+  const ads = getAds();
+  const totSpend=mo.reduce((s,m)=>s+m.spend,0);
+  const totImp=mo.reduce((s,m)=>s+m.imp,0);
+  const totClicks=mo.reduce((s,m)=>s+m.clicks,0);
+  const totViews=ads.reduce((s,a)=>s+a.res,0);
+  const avgCPM=totImp>0?totSpend/totImp*1000:0;
+  const avgCTR=totImp>0?totClicks/totImp*100:0;
+  const avgCPR=totViews>0?totSpend/totViews:0;
+
+  document.getElementById('kpi-spend').textContent=fmtBK(totSpend);
+  document.getElementById('kpi-spend-sub').textContent=`${mo.length} months · ${fmtB(totSpend/Math.max(1,mo.length))}/mo avg`;
+  document.getElementById('kpi-imp').textContent=fmtN(totImp);
+  document.getElementById('kpi-imp-sub').textContent=`${fmtN(totImp/Math.max(1,mo.length))}/mo avg`;
+  document.getElementById('kpi-cpm').textContent=fmtB(avgCPM);
+  document.getElementById('kpi-ctr').textContent=fmtP(avgCTR);
+  document.getElementById('kpi-ctr-sub').textContent=`${totClicks.toLocaleString()} total clicks`;
+  document.getElementById('kpi-views').textContent=fmtN(totViews);
+  document.getElementById('kpi-views-sub').textContent=`${fmtN(totViews/Math.max(1,mo.length))}/mo avg`;
+  document.getElementById('kpi-cpr').textContent=fmtB(avgCPR);
+}
+
+// Overview Insights
+function renderInsightsOverview() {
+  const mo = getMonths();
+  if(!mo.length) return;
+  const peak=mo.reduce((a,b)=>b.spend>a.spend?b:a);
+  const bestCTR=mo.reduce((a,b)=>b.ctr>a.ctr?b:a);
+  const bestEff=mo.reduce((a,b)=>{
+    const ra=a.ads.reduce((s,x)=>s+x.res,0); const rb=b.ads.reduce((s,x)=>s+x.res,0);
+    return (rb>0?b.spend/rb:999)<(ra>0?a.spend/ra:999)?b:a;
+  });
+  document.getElementById('ins-peak-month').textContent=peak.label;
+  document.getElementById('ins-peak-val').textContent=fmtBK(peak.spend)+' spend';
+  document.getElementById('ins-best-ctr-month').textContent=bestCTR.label;
+  document.getElementById('ins-best-ctr-val').textContent=fmtP(bestCTR.ctr)+' CTR';
+  const er=bestEff.ads.reduce((s,x)=>s+x.res,0);
+  document.getElementById('ins-best-eff-month').textContent=bestEff.label;
+  document.getElementById('ins-best-eff-val').textContent=(er>0?fmtB(bestEff.spend/er):'–')+' / result';
+}
+
+// Destroy / create chart helper
+function mkChart(id, config) {
+  if(chartInstances[id]) chartInstances[id].destroy();
+  chartInstances[id] = new Chart(document.getElementById(id).getContext('2d'), config);
+}
+
+// Spend chart
+function renderSpendChart() {
+  const mo=getMonths();
+  mkChart('chart-spend',{
+    type:'bar',
+    data:{ labels:mo.map(m=>m.label.replace(' 2026','')),
+      datasets:[{label:'Spend',data:mo.map(m=>m.spend),backgroundColor:'rgba(105,201,208,0.65)',borderColor:TEAL,borderWidth:1,borderRadius:4}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'  '+fmtB(c.raw)}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:v=>'฿'+fmtN(v)}}}}
+  });
+}
+
+// Format donut
+function renderFormatChart() {
+  const ads=getAds();
+  const spark=ads.filter(a=>a.fmt==='Spark Ads').reduce((s,a)=>s+a.spend,0);
+  const infeed=ads.filter(a=>a.fmt==='In-Feed Ads').reduce((s,a)=>s+a.spend,0);
+  const tot=spark+infeed;
+  mkChart('chart-format',{
+    type:'doughnut',
+    data:{labels:['Spark Ads','In-Feed Ads'],datasets:[{data:[spark,infeed],backgroundColor:[TEAL,PINK],borderColor:'#010101',borderWidth:3,hoverOffset:4}]},
+    options:{responsive:true,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`  ${c.label}: ${fmtBK(c.raw)} (${tot>0?(c.raw/tot*100).toFixed(1):0}%)`}}}}
+  });
+  document.getElementById('donut-legend').innerHTML=[
+    {l:'Spark Ads',v:spark,c:TEAL},{l:'In-Feed Ads',v:infeed,c:PINK}
+  ].map(i=>`<div class="legend-item"><div class="legend-left"><div class="legend-dot" style="background:${i.c}"></div><span style="font-size:11px">${i.l}</span></div><span style="font-size:11px;font-weight:700">${tot>0?(i.v/tot*100).toFixed(1):0}%</span></div><div style="font-size:10px;color:#555;padding-left:17px;margin-top:-3px;">${fmtBK(i.v)}</div>`).join('');
+}
+
+// CTR chart
+function renderCTRChart() {
+  const mo=getMonths();
+  mkChart('chart-ctr',{
+    type:'line',
+    data:{labels:mo.map(m=>m.label.replace(' 2026','')),datasets:[{label:'CTR %',data:mo.map(m=>m.ctr),borderColor:PINK,backgroundColor:'rgba(238,29,82,0.08)',tension:0.35,fill:true,pointBackgroundColor:PINK,pointRadius:4,pointHoverRadius:6}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`  CTR: ${c.raw.toFixed(2)}%`}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:v=>v.toFixed(2)+'%'},min:0}}}
+  });
+}
+
+// CPM chart
+function renderCPMChart() {
+  const mo=getMonths();
+  mkChart('chart-cpm',{
+    type:'line',
+    data:{labels:mo.map(m=>m.label.replace(' 2026','')),datasets:[{label:'CPM ฿',data:mo.map(m=>m.cpm),borderColor:YELLOW,backgroundColor:'rgba(255,214,10,0.06)',tension:0.35,fill:true,pointBackgroundColor:YELLOW,pointRadius:4,pointHoverRadius:6}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`  CPM: ฿${c.raw.toFixed(2)}`}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:v=>'฿'+v.toFixed(1)},min:0}}}
+  });
+}
+
+// Creative insights
+function renderCreativeInsights() {
+  const ads=getAds();
+  if(!ads.length) return;
+  const topS=ads.reduce((a,b)=>b.spend>a.spend?b:a);
+  const topC=ads.reduce((a,b)=>b.ctr_avg>a.ctr_avg?b:a);
+  const topE=ads.reduce((a,b)=>b.cpr>0&&(a.cpr<=0||b.cpr<a.cpr)?b:a);
+  document.getElementById('ins-top-spend').textContent=NAME_MAP[topS.n]||topS.n;
+  document.getElementById('ins-top-spend-val').textContent=fmtBK(topS.spend)+' · '+topS.fmt;
+  document.getElementById('ins-top-ctr').textContent=NAME_MAP[topC.n]||topC.n;
+  document.getElementById('ins-top-ctr-val').textContent=fmtP(topC.ctr_avg)+' avg CTR';
+  document.getElementById('ins-top-cpr').textContent=NAME_MAP[topE.n]||topE.n;
+  document.getElementById('ins-top-cpr-val').textContent=fmtB(topE.cpr)+' / result';
+}
+
+// Creative horizontal bar charts
+function renderCreativeCharts() {
+  const ads=getAds().sort((a,b)=>b.spend-a.spend);
+  const labels=ads.map(a=>NAME_MAP[a.n]||a.n);
+  const colors=ads.map(a=>a.fmt==='Spark Ads'?TEAL:PINK);
+
+  function hbar(id, data, xFmt, ttFmt) {
+    mkChart(id,{
+      type:'bar',
+      data:{labels,datasets:[{data,backgroundColor:colors.map(c=>c+'99'),borderColor:colors,borderWidth:1,borderRadius:3}]},
+      options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'  '+ttFmt(c.raw)}}},
+        scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:xFmt}},y:{grid:{display:false},ticks:{font:{size:10}}}}}
+    });
+  }
+
+  hbar('chart-creative-spend', ads.map(a=>a.spend), v=>'฿'+fmtN(v), fmtB);
+  hbar('chart-creative-views', ads.map(a=>a.res), v=>fmtN(v), v=>v.toLocaleString()+' views');
+  hbar('chart-creative-ctr', ads.map(a=>a.ctr_avg), v=>v.toFixed(2)+'%', fmtP);
+  hbar('chart-creative-cpm', ads.map(a=>a.cpm), v=>'฿'+v.toFixed(0), fmtB);
+}
+
+// Creative table
+function renderCreativeTable() {
+  let ads=getAds();
+  if(creativeSearch) {
+    const q=creativeSearch.toLowerCase();
+    ads=ads.filter(a=>(NAME_MAP[a.n]||a.n).toLowerCase().includes(q)||a.n.toLowerCase().includes(q)||a.fmt.toLowerCase().includes(q));
+  }
+  const colFns={name:a=>NAME_MAP[a.n]||a.n,format:a=>a.fmt,spend:a=>a.spend,imp:a=>a.imp,ctr:a=>a.ctr_avg,cpm:a=>a.cpm,views:a=>a.res,cpr:a=>a.cpr};
+  ads.sort((a,b)=>{
+    const fn=colFns[creativeSort.col]||(a=>a.spend);
+    const av=fn(a),bv=fn(b);
+    const d=typeof av==='string'?av.localeCompare(bv):av-bv;
+    return creativeSort.dir==='asc'?d:-d;
+  });
+  const total=ads.length, limit=parseInt(creativeRowLimit)||10;
+  const pages=Math.max(1,Math.ceil(total/limit));
+  if(creativePage>pages) creativePage=pages;
+  const slice=ads.slice((creativePage-1)*limit, creativePage*limit);
+
+  document.getElementById('creative-tbody').innerHTML=slice.map(a=>{
+    const badge=a.fmt==='Spark Ads'?`<span class="badge spark">Spark</span>`:`<span class="badge infeed">In-Feed</span>`;
+    return `<tr>
+      <td><div style="font-weight:600">${NAME_MAP[a.n]||a.n}</div><div style="font-size:9px;color:#555;margin-top:1px">${a.n}</div></td>
+      <td>${badge}</td>
+      <td style="font-weight:700">${fmtB(a.spend)}</td>
+      <td>${a.imp.toLocaleString()}</td>
+      <td>${fmtP(a.ctr_avg)}</td>
+      <td>${fmtB(a.cpm)}</td>
+      <td>${a.res.toLocaleString()}</td>
+      <td>${fmtB(a.cpr)}</td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="8"><div class="no-data">No creatives match filters</div></td></tr>`;
+
+  document.getElementById('creative-table-info').textContent=`Showing ${Math.min((creativePage-1)*limit+1,total)}–${Math.min(creativePage*limit,total)} of ${total} creatives`;
+
+  document.querySelectorAll('#creative-table th').forEach(th=>{
+    th.classList.remove('sorted-asc','sorted-desc');
+    if(th.dataset.col===creativeSort.col) th.classList.add(creativeSort.dir==='asc'?'sorted-asc':'sorted-desc');
+  });
+
+  const pager=document.getElementById('creative-pager');
+  pager.innerHTML='';
+  if(pages>1) for(let p=1;p<=pages;p++){
+    const btn=document.createElement('button');
+    btn.className='page-btn'+(p===creativePage?' active':'');
+    btn.textContent=p;
+    btn.onclick=()=>{creativePage=p;renderCreativeTable();};
+    pager.appendChild(btn);
+  }
+}
+
+// Dual chart
+function renderDualChart() {
+  const mo=getMonths();
+  const views=mo.map(m=>{
+    const filtered=activeFormat==='all'?m.ads:m.ads.filter(a=>FORMAT_MAP[a.n]===activeFormat);
+    return filtered.reduce((s,a)=>s+a.res,0);
+  });
+  mkChart('chart-dual',{
+    type:'bar',
+    data:{labels:mo.map(m=>m.label.replace(' 2026','')),datasets:[
+      {type:'bar',label:'Spend ฿',data:mo.map(m=>m.spend),backgroundColor:'rgba(105,201,208,0.5)',borderColor:TEAL,borderWidth:1,borderRadius:4,yAxisID:'y'},
+      {type:'line',label:'Video Views',data:views,borderColor:PINK,backgroundColor:'transparent',tension:0.3,pointBackgroundColor:PINK,pointRadius:5,yAxisID:'y1'}
+    ]},
+    options:{responsive:true,plugins:{legend:{position:'top',labels:{color:'#888',boxWidth:12,font:{size:10}}}},
+      scales:{y:{position:'left',grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:v=>'฿'+fmtN(v)}},y1:{position:'right',grid:{display:false},ticks:{callback:v=>fmtN(v)}}}}
+  });
+}
+
+// Impressions chart
+function renderImpChart() {
+  const mo=getMonths();
+  mkChart('chart-imp-trend',{
+    type:'bar',
+    data:{labels:mo.map(m=>m.label.replace(' 2026','')),datasets:[{label:'Impressions',data:mo.map(m=>m.imp),backgroundColor:'rgba(0,210,106,0.4)',borderColor:GREEN,borderWidth:1,borderRadius:4}]},
+    options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'  '+c.raw.toLocaleString()+' impr.'}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'}},y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{callback:v=>fmtN(v)}}}}
+  });
+}
+
+// Monthly accordion
+function renderMonthlyAccordion() {
+  const mo=getMonths();
+  const container=document.getElementById('monthly-accordion');
+  container.innerHTML='';
+  mo.forEach((m,idx)=>{
+    const prev=idx>0?mo[idx-1]:null;
+    const fAds=activeFormat==='all'?m.ads:m.ads.filter(a=>FORMAT_MAP[a.n]===activeFormat);
+    const totR=fAds.reduce((s,a)=>s+a.res,0);
+    const cpr=totR>0?m.spend/totR:0;
+    const d=document.createElement('div');
+    d.className='month-detail';
+    d.innerHTML=`
+      <div class="month-header" onclick="const b=this.nextElementSibling;b.classList.toggle('open');this.classList.toggle('open')">
+        <span class="month-name">${m.label}</span>
+        <div class="month-quick">
+          <div class="month-quick-item"><div class="month-quick-label">Spend</div><div class="month-quick-value">${fmtBK(m.spend)} ${prev?momHtml(m.spend,prev.spend):''}</div></div>
+          <div class="month-quick-item"><div class="month-quick-label">Impressions</div><div class="month-quick-value">${fmtN(m.imp)}</div></div>
+          <div class="month-quick-item"><div class="month-quick-label">CTR</div><div class="month-quick-value">${fmtP(m.ctr)} ${prev?momHtml(m.ctr,prev.ctr):''}</div></div>
+          <div class="month-quick-item"><div class="month-quick-label">CPM</div><div class="month-quick-value">${fmtB(m.cpm)}</div></div>
+          <div class="month-quick-item"><div class="month-quick-label">Cost/Result</div><div class="month-quick-value">${fmtB(cpr)}</div></div>
+        </div>
+      </div>
+      <div class="month-body">
+        <table style="width:100%">
+          <thead><tr><th>Creative</th><th>Format</th><th>Spend ฿</th><th>Impressions</th><th>CTR %</th><th>CPM ฿</th><th>Results</th><th>Cost/Result ฿</th></tr></thead>
+          <tbody>
+            ${fAds.map(a=>{
+              const fmt2=FORMAT_MAP[a.n]||'Spark Ads';
+              const badge=fmt2==='Spark Ads'?`<span class="badge spark">Spark</span>`:`<span class="badge infeed">In-Feed</span>`;
+              return `<tr>
+                <td><div style="font-weight:600">${NAME_MAP[a.n]||a.n}</div><div style="font-size:9px;color:#555">${a.n}</div></td>
+                <td>${badge}</td>
+                <td style="font-weight:700">${fmtB(a.spend)}</td>
+                <td>${a.imp.toLocaleString()}</td>
+                <td>${fmtP(a.ctr)}</td>
+                <td>${fmtB(a.cpm)}</td>
+                <td>${a.res.toLocaleString()}</td>
+                <td>${fmtB(a.res>0?a.spend/a.res:0)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    container.appendChild(d);
+  });
+}
+
+// =====================================================================
+// EVENTS
+// =====================================================================
+// Month chips
+document.querySelectorAll('#month-chips .chip').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const m=btn.dataset.month;
+    if(m==='all'){
+      activeMonths.clear(); activeMonths.add('all');
+      document.querySelectorAll('#month-chips .chip').forEach(b=>b.classList.toggle('active',b.dataset.month==='all'));
+    } else {
+      activeMonths.delete('all');
+      if(btn.classList.contains('active')){ btn.classList.remove('active'); activeMonths.delete(m); }
+      else { btn.classList.add('active'); activeMonths.add(m); }
+      document.querySelector('#month-chips [data-month="all"]').classList.remove('active');
+      if(!document.querySelectorAll('#month-chips .chip.active').length){
+        activeMonths.clear(); activeMonths.add('all');
+        document.querySelector('#month-chips [data-month="all"]').classList.add('active');
+      }
+    }
+    creativePage=1; renderAll();
+  });
+});
+
+// Format chips
+document.querySelectorAll('#format-chips .chip').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    activeFormat=btn.dataset.format;
+    document.querySelectorAll('#format-chips .chip').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    creativePage=1; renderAll();
+  });
+});
+
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Table sort
+document.querySelectorAll('#creative-table th').forEach(th=>{
+  th.addEventListener('click',()=>{
+    if(creativeSort.col===th.dataset.col) creativeSort.dir=creativeSort.dir==='asc'?'desc':'asc';
+    else{ creativeSort.col=th.dataset.col; creativeSort.dir='desc'; }
+    creativePage=1; renderCreativeTable();
+  });
+});
+
+document.getElementById('creative-row-limit').addEventListener('change',e=>{ creativeRowLimit=parseInt(e.target.value); creativePage=1; renderCreativeTable(); });
+document.getElementById('creative-search').addEventListener('input',e=>{ creativeSearch=e.target.value; creativePage=1; renderCreativeTable(); });
+
+// =====================================================================
+// INIT
+// =====================================================================
+(function(){
+  DATA = DRIVE_DATA;
+  document.getElementById('last-updated-text').textContent='Data synced Jul 15, 2026';
+  document.getElementById('loading').style.display='none';
+  document.getElementById('app').style.display='block';
+  renderAll();
+})();
+</script>
+</body>
+</html>

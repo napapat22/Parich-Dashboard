@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PARICH · Four Live Dashboards</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{--orange:#e07b39;--orange-d:#c25f22;--green:#1f7a3d;--ink:#1f2937;--muted:#6b7280;
+    --bg:#f5f6f4;--card:#fff;--line:#e5e7eb;--shadow:0 2px 10px rgba(0,0,0,.07)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Sarabun',system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  h1,h2,h3,.k{font-family:'Kanit',sans-serif}
+  header{background:linear-gradient(135deg,#fff,#faf6f2);padding:34px 30px 26px;border-bottom:1px solid var(--line)}
+  .wrap{max-width:1080px;margin:0 auto}
+  .pill{display:inline-block;background:var(--orange);color:#fff;font-family:'Kanit',sans-serif;font-weight:600;
+    letter-spacing:.5px;font-size:13px;padding:8px 20px;border-radius:30px;text-transform:uppercase}
+  h1{margin:16px 0 4px;font-size:34px;font-weight:700;color:#111}
+  .sub{color:var(--orange-d);font-family:'Kanit',sans-serif;font-weight:500;font-size:18px;margin:0}
+  .grid{max-width:1080px;margin:30px auto;padding:0 30px;display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+  a.card{display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);
+    border-radius:16px;padding:22px 22px 20px;box-shadow:var(--shadow);transition:.18s;border-top:5px solid var(--orange)}
+  a.card:hover{transform:translateY(-4px);box-shadow:0 10px 24px rgba(0,0,0,.12);border-top-color:var(--green)}
+  .card .ico{font-size:30px}
+  .card h3{margin:10px 0 6px;font-size:20px;color:#111}
+  .card p{margin:0;color:var(--muted);font-size:14.5px;line-height:1.5}
+  .card .go{margin-top:14px;color:var(--orange-d);font-weight:600;font-family:'Kanit',sans-serif;font-size:14px}
+  footer{max-width:1080px;margin:10px auto 40px;padding:0 30px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <span class="pill">Napapat · Four Live Dashboards</span>
+  <h1>PARICH — Live Dashboards</h1>
+  <p class="sub">Market, farmer, and competitor intelligence — updated live</p>
+</div></header>
+
+<div class="grid">
+  <a class="card" href="farmer_insights_dashboard.html">
+    <div class="ico">🌾</div>
+    <h3>Farmer Insight Dashboard</h3>
+    <p>What farmers actually talk about — topic & keyword trends and regional pain points by season.</p>
+    <div class="go">Open dashboard →</div>
+  </a>
+  <a class="card" href="agri-dashboard.html">
+    <div class="ico">📊</div>
+    <h3>Crop Price & Production-Alert Dashboard</h3>
+    <p>Weekly crop prices from 3 sources (สศก. / ตลาดไทย / กรมการค้าภายใน) plus pest & disease early warnings by crop.</p>
+    <div class="go">Open dashboard →</div>
+  </a>
+  <a class="card" href="facebook_competitor_dashboard.html">
+    <div class="ico">📘</div>
+    <h3>Facebook Competitor Dashboard</h3>
+    <p>Competitor activity and content performance tracked across Facebook.</p>
+    <div class="go">Open dashboard →</div>
+  </a>
+  <a class="card" href="tiktok_ads_dashboard.html">
+    <div class="ico">🎵</div>
+    <h3>TikTok Ads Dashboard</h3>
+    <p>TikTok advertising performance and creative insights.</p>
+    <div class="go">Open dashboard →</div>
+  </a>
+</div>
+
+<footer>Confidential &amp; Proprietary — PARICH Fertilizer</footer>
+</body>
+</html>

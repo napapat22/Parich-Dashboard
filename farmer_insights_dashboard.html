@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌾 แดชบอร์ดวิเคราะห์พฤติกรรมเกษตรกรไทย</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --green-dark:#1a4a2e;--green-mid:#2d7a4f;--green-light:#4caf50;--green-pale:#e8f5e9;
+    --amber:#ff8f00;--amber-light:#fff8e1;--red:#c62828;--red-light:#ffebee;
+    --blue:#1565c0;--blue-light:#e3f2fd;--orange:#e65100;
+    --bg:#f4f6f0;--card:#ffffff;--text:#1b2a1e;--text-light:#5a7a5e;
+    --border:#d4e8d0;--shadow:0 2px 12px rgba(26,74,46,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);}
+
+  .header{background:linear-gradient(135deg,var(--green-dark) 0%,var(--green-mid) 100%);color:white;padding:24px 36px 18px;display:flex;align-items:center;gap:18px;}
+  .header-icon{font-size:46px;}
+  .header h1{font-size:24px;font-weight:700;}
+  .header p{font-size:12px;opacity:.85;margin-top:4px;}
+  .header-badges{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+  .badge{background:rgba(255,255,255,0.18);border-radius:20px;padding:3px 10px;font-size:11px;}
+  .badge.warn{background:rgba(255,193,7,0.3);border:1px solid rgba(255,193,7,0.5);}
+  .header-meta{margin-left:auto;text-align:right;font-size:11px;opacity:.7;}
+
+  .tabs{display:flex;background:var(--green-dark);padding:0 36px;gap:2px;overflow-x:auto;}
+  .tab{padding:10px 20px;font-size:13px;font-weight:600;color:rgba(255,255,255,0.65);cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;}
+  .tab:hover{color:white;}
+  .tab.active{color:#a5d6a7;border-bottom-color:#a5d6a7;}
+
+  .content{display:none;padding:24px 36px;}
+  .content.active{display:block;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
+  .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+
+  .card{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:20px 22px;border:1px solid var(--border);}
+  .card h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-light);margin-bottom:12px;font-weight:600;}
+  .card h3 span{font-size:15px;margin-right:5px;}
+
+  .kpi{text-align:center;}
+  .kpi .value{font-size:34px;font-weight:800;color:var(--green-mid);}
+  .kpi .label{font-size:12px;color:var(--text-light);margin-top:4px;}
+  .kpi .sublabel{font-size:10px;color:var(--text-light);margin-top:2px;opacity:.7;}
+
+  .chart-box{position:relative;height:250px;}
+  .chart-box-lg{position:relative;height:310px;}
+  .chart-box-sm{position:relative;height:190px;}
+
+  .pain-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .pain-item{padding:12px 14px;border-radius:10px;display:flex;align-items:center;gap:10px;}
+  .pain-pests{background:#fff3e0;border-left:4px solid #ff6f00;}
+  .pain-price{background:#fce4ec;border-left:4px solid #c62828;}
+  .pain-drought{background:#e3f2fd;border-left:4px solid #1565c0;}
+  .pain-disease{background:#f3e5f5;border-left:4px solid #6a1b9a;}
+  .pain-cost{background:#e8f5e9;border-left:4px solid #2e7d32;}
+  .pain-yield{background:#fff8e1;border-left:4px solid #f9a825;}
+  .pain-market{background:#fbe9e7;border-left:4px solid #e64a19;}
+  .pain-item .icon{font-size:26px;}
+  .pain-item .info .count{font-size:22px;font-weight:800;}
+  .pain-item .info .name{font-size:11px;color:var(--text-light);}
+
+  .post-list{display:flex;flex-direction:column;gap:10px;max-height:430px;overflow-y:auto;}
+  .post-item{padding:11px 13px;border-radius:8px;background:var(--green-pale);border:1px solid var(--border);cursor:pointer;}
+  .post-item:hover{background:#d0edda;}
+  .post-item .post-text{font-size:12.5px;color:var(--text);margin-bottom:5px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .post-item .post-meta{display:flex;gap:12px;font-size:10.5px;color:var(--text-light);flex-wrap:wrap;}
+  .post-rank{font-size:17px;font-weight:800;color:var(--green-mid);min-width:26px;}
+  .tag{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:600;margin:2px;}
+  .tag-pest{background:#fff3e0;color:#e65100;}
+  .tag-price{background:#fce4ec;color:#c62828;}
+  .tag-drought{background:#e3f2fd;color:#1565c0;}
+  .tag-disease{background:#f3e5f5;color:#6a1b9a;}
+  .tag-cost{background:#e8f5e9;color:#2e7d32;}
+  .tag-yield{background:#fff8e1;color:#f57f17;}
+  .tag-market{background:#fbe9e7;color:#e64a19;}
+
+  .keyword-cloud{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:6px 0;}
+  .kw-bubble{padding:5px 12px;border-radius:20px;font-size:11px;font-weight:600;cursor:default;transition:transform .15s;}
+  .kw-bubble:hover{transform:scale(1.08);}
+  .kw-1{background:#1b5e20;color:white;font-size:15px;padding:8px 16px;}
+  .kw-2{background:#2e7d32;color:white;font-size:13px;padding:7px 14px;}
+  .kw-3{background:#388e3c;color:white;font-size:12px;}
+  .kw-4{background:#43a047;color:white;}
+  .kw-5{background:#66bb6a;color:#1b2a1e;}
+  .kw-6{background:#a5d6a7;color:#1b2a1e;font-size:10.5px;}
+
+  .theme-row{margin-bottom:12px;}
+  .theme-label{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;}
+  .theme-bar-bg{background:#e0e0e0;border-radius:6px;height:9px;}
+  .theme-bar-fill{height:9px;border-radius:6px;}
+
+  .group-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .group-table th{background:var(--green-pale);color:var(--green-dark);padding:9px 11px;text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;position:sticky;top:0;}
+  .group-table td{padding:8px 11px;border-bottom:1px solid var(--border);}
+  .group-table tr:hover td{background:var(--green-pale);}
+  .engagement-bar{display:inline-block;height:6px;border-radius:3px;background:var(--green-light);vertical-align:middle;margin-right:5px;}
+  .table-scroll{max-height:340px;overflow-y:auto;border-radius:8px;border:1px solid var(--border);}
+
+  .crop-grid{display:flex;flex-wrap:wrap;gap:9px;}
+  .crop-tag{display:flex;flex-direction:column;align-items:center;padding:10px 14px;border-radius:10px;background:var(--green-pale);border:1px solid var(--border);min-width:76px;}
+  .crop-tag .crop-icon{font-size:22px;}
+  .crop-tag .crop-name{font-size:10px;color:var(--text-light);margin-top:3px;}
+  .crop-tag .crop-count{font-size:18px;font-weight:800;color:var(--green-mid);}
+
+  .insight-box{padding:14px 16px;border-radius:10px;margin-bottom:12px;border-left:5px solid;}
+  .insight-box.green{background:var(--green-pale);border-color:var(--green-mid);}
+  .insight-box.amber{background:var(--amber-light);border-color:var(--amber);}
+  .insight-box.red{background:var(--red-light);border-color:var(--red);}
+  .insight-box.blue{background:var(--blue-light);border-color:var(--blue);}
+  .insight-box h4{font-size:12.5px;font-weight:700;margin-bottom:5px;}
+  .insight-box p{font-size:11.5px;line-height:1.6;color:var(--text-light);}
+
+  .alert-box{background:#fff3e0;border:1px solid #ffb74d;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#e65100;margin-bottom:16px;}
+  .alert-box strong{font-weight:700;}
+
+  ::-webkit-scrollbar{width:5px;height:5px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+  .section-title{font-size:18px;font-weight:700;color:var(--green-dark);margin-bottom:18px;display:flex;align-items:center;gap:8px;}
+  .mb20{margin-bottom:20px;} .mt10{margin-top:10px;} .mt16{margin-top:16px;}
+  @media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr;}.content{padding:14px;}.header{padding:14px;}.tabs{padding:0 14px;}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">🌾</div>
+  <div>
+    <h1>ข้อมูลเชิงลึกพฤติกรรมเกษตรกรไทย</h1>
+    <p>วิเคราะห์กลุ่มเฟซบุ๊ก · 2,500 โพสต์ · 24 กลุ่ม · ประเทศไทย</p>
+    <div class="header-badges">
+      <span class="badge">🕐 ปรับเวลา UTC+7 แล้ว</span>
+      <span class="badge">🔤 แยกคำด้วย pythainlp newmm</span>
+      <span class="badge">🔍 ตรวจจับปัญหา (7 หมวดหมู่)</span>
+      <span class="badge warn">⚠️ วันในสัปดาห์: ข้อมูลเอนเอียงจากวันเดียว</span>
+    </div>
+  </div>
+  <div class="header-meta">
+    <div>เก็บข้อมูล: 29 มิถุนายน 2569</div>
+    <div>ที่มา: apify/facebook-groups-scraper</div>
+    <div>v3 — วิเคราะห์ครบ 2,500 โพสต์</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('overview',this)">📊 ภาพรวม</div>
+  <div class="tab" onclick="showTab('pain',this)">😟 ปัญหาที่พบ</div>
+  <div class="tab" onclick="showTab('keywords',this)">🔤 คำสำคัญ</div>
+  <div class="tab" onclick="showTab('engagement',this)">❤️ การมีส่วนร่วม</div>
+  <div class="tab" onclick="showTab('crops',this)">🌱 พืชผล</div>
+  <div class="tab" onclick="showTab('insights',this)">💡 ข้อมูลเชิงลึก</div>
+</div>
+
+<!-- OVERVIEW -->
+<div id="tab-overview" class="content active">
+  <div class="alert-box">
+    <strong>⚠️ หมายเหตุข้อมูล:</strong> วันในสัปดาห์มีความเอนเอียง — โปรแกรมเก็บข้อมูลรันเมื่อวันจันทร์ที่ 29 มิ.ย. ทำให้ ~65% ของโพสต์แสดงเป็น "วันจันทร์" ซึ่งไม่ได้หมายความว่าเกษตรกรโพสต์แค่วันจันทร์ ข้อมูลชั่วโมงต่อวันมีความหมาย (ปรับเวลา UTC+7 แล้ว)
+  </div>
+  <div class="grid-4">
+    <div class="card kpi"><div class="value">2,500</div><div class="label">โพสต์ที่วิเคราะห์</div><div class="sublabel">จาก 2,599 โพสต์ที่เก็บทั้งหมด</div></div>
+    <div class="card kpi"><div class="value">24</div><div class="label">กลุ่มเกษตรกร</div><div class="sublabel">ไทย / ภาษาไทย</div></div>
+    <div class="card kpi"><div class="value">876</div><div class="label">โพสต์ปัญหา</div><div class="sublabel">35.0% ของโพสต์ทั้งหมด</div></div>
+    <div class="card kpi"><div class="value">16:00</div><div class="label">ชั่วโมงโพสต์สูงสุด (กทม.)</div><div class="sublabel">315 โพสต์ ช่วง 16:00–17:00</div></div>
+  </div>
+  <div class="grid-2 mb20">
+    <div class="card">
+      <h3><span>🕐</span>โพสต์ตามชั่วโมง — เวลากรุงเทพฯ (UTC+7)</h3>
+      <div class="chart-box"><canvas id="hourChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3><span>😊</span>การกระจายรีแอคชัน (รวม 19,054)</h3>
+      <div class="chart-box"><canvas id="reactionChart"></canvas></div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <h3><span>🌱</span>พืชที่ถูกกล่าวถึงมากที่สุด</h3>
+      <div class="chart-box"><canvas id="cropOverviewChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3><span>😟</span>การแบ่งหมวดหมู่ปัญหา (876 โพสต์)</h3>
+      <div class="chart-box"><canvas id="painOverviewChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- PAIN POINTS -->
+<div id="tab-pain" class="content">
+  <div class="section-title">😟 ปัญหาของเกษตรกร — 876 / 2,500 โพสต์ (35.0%)</div>
+  <div class="grid-2 mb20">
+    <div class="card">
+      <h3><span>🚨</span>หมวดหมู่ปัญหา (ตรวจจับแบบขยาย)</h3>
+      <div class="pain-grid mt10">
+        <div class="pain-item pain-pests"><div class="icon">🦟</div><div class="info"><div class="count">600</div><div class="name">แมลง / ศัตรูพืช</div></div></div>
+        <div class="pain-item pain-price"><div class="icon">📉</div><div class="info"><div class="count">347</div><div class="name">ราคาตก / ขาดทุน</div></div></div>
+        <div class="pain-item pain-drought"><div class="icon">🌧️</div><div class="info"><div class="count">59</div><div class="name">แล้ง / น้ำท่วม</div></div></div>
+        <div class="pain-item pain-disease"><div class="icon">🦠</div><div class="info"><div class="count">83</div><div class="name">โรค / เชื้อรา</div></div></div>
+        <div class="pain-item pain-market"><div class="icon">🏪</div><div class="info"><div class="count">60</div><div class="name">ล้ง / ตลาด / ขายไม่ออก</div></div></div>
+        <div class="pain-item pain-cost"><div class="icon">💸</div><div class="info"><div class="count">38</div><div class="name">ต้นทุน / หนี้สิน</div></div></div>
+        <div class="pain-item pain-yield"><div class="icon">📦</div><div class="info"><div class="count">21</div><div class="name">ผลผลิตน้อย / คุณภาพต่ำ</div></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3><span>📊</span>กราฟตามหมวดหมู่ปัญหา</h3>
+      <div class="chart-box"><canvas id="painDetailChart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span>🔥</span>20 โพสต์ปัญหาที่มีการมีส่วนร่วมสูงสุด</h3>
+    <div class="post-list mt10" id="painPostList"></div>
+  </div>
+</div>
+
+<!-- KEYWORDS -->
+<div id="tab-keywords" class="content">
+  <div class="section-title">🔤 คำสำคัญยอดนิยม — แยกคำด้วย pythainlp newmm</div>
+  <div class="grid-2 mb20">
+    <div class="card">
+      <h3><span>☁️</span>คลาวด์คำสำคัญ (60 อันดับแรก)</h3>
+      <div id="wordCloud" class="keyword-cloud mt10"></div>
+    </div>
+    <div class="card">
+      <h3><span>📊</span>20 คำสำคัญตามจำนวนครั้ง</h3>
+      <div class="chart-box-lg"><canvas id="kwBarChart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span>📋</span>80 คำสำคัญ — รายการเต็ม</h3>
+    <div class="table-scroll mt10">
+      <table class="group-table">
+        <thead><tr><th>#</th><th>คำสำคัญ</th><th>จำนวน</th><th>กราฟ</th></tr></thead>
+        <tbody id="kwTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ENGAGEMENT -->
+<div id="tab-engagement" class="content">
+  <div class="section-title">❤️ การวิเคราะห์การมีส่วนร่วม</div>
+  <div class="grid-4 mb20">
+    <div class="card kpi"><div class="value">19,054</div><div class="label">ยอดไลก์รวม</div><div class="sublabel">เฉลี่ย 7.6 ต่อโพสต์</div></div>
+    <div class="card kpi"><div class="value">4,278</div><div class="label">ยอดคอมเมนต์รวม</div><div class="sublabel">เฉลี่ย 1.7 ต่อโพสต์</div></div>
+    <div class="card kpi"><div class="value">256</div><div class="label">ยอดแชร์รวม</div><div class="sublabel">เฉลี่ย 0.1 ต่อโพสต์</div></div>
+    <div class="card kpi"><div class="value" style="color:var(--amber)">32.0</div><div class="label">ไลก์เฉลี่ยสูงสุด/โพสต์</div><div class="sublabel">กลุ่มทุเรียนมือใหม่ฯ</div></div>
+  </div>
+  <div class="grid-2 mb20">
+    <div class="card">
+      <h3><span>🏆</span>ไลก์เฉลี่ยต่อโพสต์ — แยกตามกลุ่ม (15 อันดับแรก)</h3>
+      <div class="chart-box-lg"><canvas id="groupEngChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3><span>🔝</span>20 โพสต์ที่มีการมีส่วนร่วมสูงสุด</h3>
+      <div class="post-list" id="engPostList"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span>📋</span>ทุกกลุ่ม — ตารางการมีส่วนร่วม</h3>
+    <div class="table-scroll mt10">
+      <table class="group-table">
+        <thead><tr><th>กลุ่ม</th><th>โพสต์</th><th>ไลก์เฉลี่ย</th><th>คอมเมนต์เฉลี่ย</th><th>แชร์เฉลี่ย</th><th>กราฟ</th></tr></thead>
+        <tbody id="groupTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- CROPS -->
+<div id="tab-crops" class="content">
+  <div class="section-title">🌱 พืชและปศุสัตว์ที่ถูกกล่าวถึง</div>
+  <div class="grid-2 mb20">
+    <div class="card">
+      <h3><span>🌾</span>การกล่าวถึงพืชทั้งหมด</h3>
+      <div class="crop-grid mt10" id="cropGrid"></div>
+    </div>
+    <div class="card">
+      <h3><span>📊</span>กราฟการกล่าวถึงพืช</h3>
+      <div class="chart-box-lg"><canvas id="cropDetailChart"></canvas></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3><span>🗺️</span>การกระจายตัวของพืช</h3>
+    <div class="chart-box-lg mt10"><canvas id="cropPieChart"></canvas></div>
+  </div>
+</div>
+
+<!-- INSIGHTS -->
+<div id="tab-insights" class="content">
+  <div class="section-title">💡 ข้อมูลเชิงลึกและคำแนะนำ</div>
+  <div class="grid-2">
+    <div>
+      <div class="insight-box red">
+        <h4>🔴 #1 วิกฤต: แมลงและศัตรูพืชครองปัญหาอันดับ 1</h4>
+        <p>600 โพสต์ (24% ของทั้งหมด) กล่าวถึงปัญหาแมลงหรือศัตรูพืช — เหนือกว่าทุกหมวดหมู่ปัญหาอื่น คำว่าหนอน เพลี้ย ระบาด ปรากฏบ่อยมาก ปัญหาแมลงพบในพืชหลักทุกชนิด โดยเฉพาะทุเรียนและปาล์ม</p>
+      </div>
+      <div class="insight-box amber">
+        <h4>🟡 #2 ความกดดันด้านราคาเป็นความกังวลหลัก</h4>
+        <p>347 โพสต์ (13.9%) สะท้อนความเจ็บปวดจากราคาตก คำว่าราคา บาท ขาย ตก บ่งบอกถึงความวิตกกังวลเรื่องราคาตลาด เกษตรกรชาวไร่อ้อยพูดถึงเรื่องนี้มากเป็นพิเศษ — หลายโพสต์อ้างถึงราคา 120 บาท/ตัน เป็นเกณฑ์การอยู่รอด</p>
+      </div>
+      <div class="insight-box blue">
+        <h4>🔵 #3 ทุเรียนคือพืชที่ถูกพูดถึงมากที่สุด</h4>
+        <p>ทุเรียนนำด้วย 667 ครั้ง จาก 5 กลุ่มเฟซบุ๊กทุเรียน การมีส่วนร่วมสูง (เฉลี่ย 32 ไลก์/โพสต์ในกลุ่มทุเรียนอันดับ 1) สะท้อนความผูกพันของชุมชน หัวข้อยอดนิยมคือการระบุสายพันธุ์และระยะเวลาตัด</p>
+      </div>
+      <div class="insight-box green">
+        <h4>🟢 #4 ช่วงโพสต์สูงสุด: 10:00–16:00 เวลากรุงเทพฯ</h4>
+        <p>เกษตรกรแอคทีฟที่สุดช่วง 10:00–16:00 (UTC+7) โดยพุ่งสูงสุดที่ 16:00–17:00 (315 โพสต์) สอดคล้องกับช่วงพักกลางวันและกิจกรรมหลังจากทำงานในไร่ ช่วงเช้า (6–9 โมง) มีความเคลื่อนไหวพอสมควร</p>
+      </div>
+    </div>
+    <div>
+      <div class="insight-box amber">
+        <h4>🟡 #5 เกษตรกรปาล์มน้ำมันโพสต์มากที่สุดโดยปริมาณ</h4>
+        <p>ปาล์มคือคำที่ถูกกล่าวถึงมากที่สุด (497 ครั้ง) และปาล์มน้ำมันปรากฏใน 4+ กลุ่ม เกษตรกรพูดถึงตารางใส่ปุ๋ย (14-7-35, 00-60) การเปรียบเทียบสายพันธุ์ (คาลิก vs ซีพี) และช่วงเวลาเก็บเกี่ยวอย่างละเอียด</p>
+      </div>
+      <div class="insight-box red">
+        <h4>🔴 #6 เกษตรกรชาวไร่อ้อยเผชิญความเครียดทางเศรษฐกิจ</h4>
+        <p>โพสต์ที่มีการมีส่วนร่วมสูงจากกลุ่มอ้อยหลายโพสต์อ้างถึงการประกันราคาของรัฐบาลและนโยบาย 120 บาท/ตัน โพสต์อย่าง "ล้มจมเพราะรัฐ" และ "มีแต่ปัญหา" ได้รับหลายร้อยไลก์ — สะท้อนความหงุดหงิดที่แพร่หลายต่อเศรษฐศาสตร์พืชผล</p>
+      </div>
+      <div class="insight-box blue">
+        <h4>🔵 #7 ช่องว่างความรู้เรื่องปุ๋ย</h4>
+        <p>ปุ๋ย คือคำที่พบบ่อยเป็นอันดับ 10 (218 ครั้ง) และใส่ปุ๋ย ปรากฏ 83 ครั้ง เกษตรกรถามบ่อยเรื่องสูตร ช่วงเวลา และปริมาณ — บ่งบอกถึงโอกาสทางการศึกษาที่สำคัญสำหรับบริษัทปัจจัยการผลิตทางการเกษตร</p>
+      </div>
+      <div class="insight-box green">
+        <h4>🟢 #8 พฤติกรรมแบ่งปันความรู้ในชุมชน</h4>
+        <p>สอบถาม (85 ครั้ง) และ ช่วย (98 ครั้ง) บ่งชี้ว่ากลุ่มเหล่านี้ถูกใช้เพื่อการเรียนรู้จากเพื่อนเป็นหลัก ไม่ใช่แค่รับข่าวสาร โพสต์ให้ข้อมูลคุณภาพสูงได้รับการมีส่วนร่วมเกินสัดส่วน — คำถามเรื่องการแบ่งเปอร์เซ็นต์คนดูแลทุเรียนได้ 563 engagement รวม</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(id, el) {
+  document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  el.classList.add('active');
+}
+
+const HOURS = {"0":3,"1":4,"2":4,"3":7,"4":9,"5":20,"6":51,"7":106,"8":144,"9":169,"10":232,"11":213,"12":217,"13":214,"14":244,"15":232,"16":315,"17":58,"18":53,"19":59,"20":65,"21":52,"22":20,"23":9};
+const REACTIONS = {"reactionLikeCount":18460,"reactionLoveCount":170,"reactionHahaCount":167,"reactionWowCount":98,"reactionSadCount":70,"reactionAngryCount":7,"reactionCareCount":82};
+const CROPS = {"ทุเรียน":667,"อ้อย":474,"ปาล์ม":447,"ข้าวโพด":372,"มันสำปะหลัง":220,"ยางพารา":156,"ปลา":114,"ข้าว":39,"ผัก":25,"ไก่":23,"หมู":19,"วัว":11,"ไข่":5,"กล้วย":3,"ลำไย":3,"กุ้ง":2,"มะม่วง":1};
+const PAIN_CATS = {"pest":600,"price_drop":347,"disease":83,"market_access":60,"drought_flood":59,"cost_debt":38,"yield_quality":21};
+const KEYWORDS = [{"word":"ปาล์ม","count":497},{"word":"ต้น","count":379},{"word":"ทุเรียน","count":359},{"word":"อ้อย","count":350},{"word":"บาท","count":300},{"word":"การ","count":280},{"word":"ราคา","count":262},{"word":"ปลูก","count":258},{"word":"ใบ","count":227},{"word":"ปุ๋ย","count":218},{"word":"ส่ง","count":215},{"word":"ตัด","count":211},{"word":"สวน","count":195},{"word":"ดิน","count":167},{"word":"สนใจ","count":165},{"word":"หญ้า","count":159},{"word":"ฝน","count":159},{"word":"น้ำมัน","count":156},{"word":"ใส่","count":153},{"word":"ละ","count":152},{"word":"ข้าว","count":150},{"word":"พร้อม","count":147},{"word":"น้ำ","count":144},{"word":"ไร่","count":136},{"word":"ชาวไร่","count":136},{"word":"มัน","count":125},{"word":"ข้าวโพด","count":123},{"word":"เกษตร","count":120},{"word":"ใหม่","count":118},{"word":"บ้าน","count":117},{"word":"วันนี้","count":115},{"word":"ถึง","count":114},{"word":"ทาง","count":112},{"word":"รถ","count":109},{"word":"คือ","count":107},{"word":"ลูก","count":104},{"word":"คน","count":103},{"word":"ใหญ่","count":102},{"word":"เกษตรกร","count":100},{"word":"ผลผลิต","count":99},{"word":"ช่วย","count":98},{"word":"อย่าง","count":96},{"word":"ฟรี","count":94},{"word":"แปลง","count":93},{"word":"พืช","count":92},{"word":"ปลายทาง","count":91},{"word":"ไหม","count":91},{"word":"สายพันธุ์","count":88},{"word":"ทัก","count":87},{"word":"ขาย","count":86},{"word":"เก็บ","count":86},{"word":"แบบนี้","count":85},{"word":"เพิ่ม","count":85},{"word":"สอบถาม","count":85},{"word":"รอ","count":85},{"word":"ใส่ปุ๋ย","count":83},{"word":"ชาวสวน","count":82},{"word":"นา","count":82},{"word":"ลง","count":82},{"word":"ยาง","count":82},{"word":"ต่อ","count":81},{"word":"สร้าง","count":81},{"word":"เงิน","count":79},{"word":"บริการ","count":78},{"word":"สูตร","count":77},{"word":"ไทย","count":76},{"word":"ขึ้น","count":75},{"word":"ร้าน","count":74},{"word":"รับ","count":73},{"word":"ขนาด","count":73},{"word":"ยา","count":71},{"word":"เยอะ","count":70},{"word":"หมอนทอง","count":69},{"word":"อายุ","count":68},{"word":"บ่","count":66},{"word":"ไว้","count":66},{"word":"รถไถ","count":66},{"word":"ตก","count":66},{"word":"เม็ด","count":64},{"word":"ราก","count":63}];
+
+const PAIN_POSTS = [
+  {rank:1,text:"โกลด์เด้นเทเนอร่าKB4. 100 ต้น พื้นที่ 5ไร่ ระยะปลูก 9.5×9.5 เริ่มเก็บผลผลิต 2 ปี 2 เดือน ตัดมาจนถึง 2 ปี 9 เดือน 25 วัน ผลผลิตรวมทั้งหมด 5,050 กิโลกรั",url:"https://www.facebook.com/groups/100533496949026/permalink/2931145903887757/",cats:["pest"],eng:1171,group:"คนปลูกปาล์มน้ำมันแห่งประเทศไทย"},
+  {rank:2,text:"ซ้าย คาลิก600 ขวา ซีพีไฮบริด ปลูกพร้อมกันแปลงเดียวกันดูแลเหมือนกัน อายุ3ปีเต็ม คาลิกทลายน้ำหนักดีกว่า แต่ซีพีตัดง่ายกว่า",url:"https://www.facebook.com/groups/100533496949026/permalink/2932194123782935/",cats:["pest"],eng:421,group:"คนปลูกปาล์มน้ำมันแห่งประเทศไทย"},
+  {rank:3,text:"โดนคุณหนูกัด น้องยังจะรอดอีกไหมคะ",url:"https://www.facebook.com/groups/400145329394050/permalink/1014469034628340/",cats:["pest"],eng:288,group:"คนทำปาล์มน้ำมัน ใหม่"},
+  {rank:4,text:"📣กระทรวงอุตสาหกรรม ย้ำ‼ ดูแลพี่น้องชาวไร่อ้อย \"เดินหน้าจ่ายเงินช่วยเหลือ\" ก่อนเปิดหีบฤดูการผลิต",url:"https://www.facebook.com/groups/115748365681224/permalink/2074090696513638/",cats:["pest","price_drop"],eng:211,group:"กลุ่มผู้ ปลูกอ้อยอย่างฉลาด"},
+  {rank:5,text:"สลดกลางสวนปาล์มกระบี่‼️เคียวแทงปาล์มหลุดมือ ปักอกคนงานวัย 41 ดับสลด",url:"https://www.facebook.com/groups/400145329394050/permalink/1014467687961808/",cats:["disease"],eng:207,group:"คนทำปาล์มน้ำมัน ใหม่"},
+  {rank:6,text:"คิดว่าน่าฝน ที่ไหนได้หน้าแล้งค่ะ อาการแบบนี้ฝนตกมาจะหายไหมคะ",url:"https://www.facebook.com/groups/2769628863323669/permalink/4630355993917604/",cats:["drought_flood","price_drop","market_access"],eng:187,group:"ผู้ปลูกข้าวโพดแลกเปลี่ยนประสบการณ์"},
+  {rank:7,text:"ถ้ามีปาล์ม 100 ไร่ แต่ต้องเลือกได้แค่อย่างเดียว... ฉีดยาฆ่าหญ้า หรือ ตัดหญ้า?",url:"https://www.facebook.com/groups/100533496949026/permalink/2932306207105060/",cats:["pest"],eng:178,group:"คนปลูกปาล์มน้ำมันแห่งประเทศไทย"},
+  {rank:8,text:"ดูสภาพแปลงอ้อยคือรับไม่ได้เลย ทั้งหญ้าใบกว้างใบแคบ เงินซื้อยาก็ไม่มี ความหวังเดียวตอนนี้คือ 120บ./ตัน",url:"https://www.facebook.com/groups/115748365681224/permalink/2073723896550318/",cats:["pest"],eng:147,group:"กลุ่มผู้ ปลูกอ้อยอย่างฉลาด"},
+  {rank:9,text:"ตอนซื้อมาปลูกคิดว่าหมอนทอง พอเป็นลูกมีแต่คนบอกไม่ใช่ เพื่อนๆในกลุ่มช่วยดูให้หน่อยได้มั้ยคะ พันธุ์อะไรคะ",url:"https://www.facebook.com/groups/398788065112460/permalink/1589063279418260/",cats:["yield_quality","pest","disease"],eng:164,group:"กลุ่มทุเรียนมือใหม่ เรียนรู้ไปด้วยกัน"},
+  {rank:10,text:"รอต่อไปเงินตามตัดอ้อยสด120บาท/ตัน เดือนร้อนกันถ้วนหน้า",url:"https://www.facebook.com/groups/115748365681224/permalink/2073883496534358/",cats:["pest"],eng:121,group:"กลุ่มผู้ ปลูกอ้อยอย่างฉลาด"},
+  {rank:11,text:"ราคาปาล์มบ้านเรา 6.80 ภาคใต้ 8.20 อะไรคือปัจจัยทำให้ราคาต่างกัน",url:"https://www.facebook.com/groups/100533496949026/permalink/2931573663844981/",cats:["pest","price_drop"],eng:109,group:"คนปลูกปาล์มน้ำมันแห่งประเทศไทย"},
+  {rank:12,text:"ล้มจมเพราะรัฐ เป็นผู้มอบให้ #ชาวไร่อ้อย",url:"https://www.facebook.com/groups/917776481676002/permalink/27433008849726071/",cats:["pest"],eng:140,group:"สมาคมชาวไร่อ้อยแห่งภาคอีสาน"},
+  {rank:13,text:"ตั้งอกตั้งใจ ราคางาม",url:"https://www.facebook.com/groups/1773729789621090/permalink/4474681462859229/",cats:["price_drop"],eng:132,group:"กลุ่มนาข้าว (กระดูกสันหลังของชาติ)"},
+  {rank:14,text:"สอบถามผู้มีความรู้หน่อยครับ มาทำทุเรียนต่อจากพ่อตา ฝนตกยาวๆ เกือบเดือน แล้วก็ฝนแล้ง ใบมีอาการควรแก้ไขยังไง",url:"https://www.facebook.com/groups/398788065112460/permalink/1589570736034181/",cats:["drought_flood","price_drop","market_access"],eng:125,group:"กลุ่มทุเรียนมือใหม่ เรียนรู้ไปด้วยกัน"},
+  {rank:15,text:"ปาล์มปลูกซ้อม 2 ปีกว่า โดนน้ำท่วมมันเกือบจะตาย แต่มันแทงยอดออกมาใหม่",url:"https://www.facebook.com/groups/400145329394050/permalink/1014995327909044/",cats:["drought_flood","pest"],eng:124,group:"คนทำปาล์มน้ำมัน ใหม่"},
+  {rank:16,text:"มีแต่ปัญหาทำอ้อยลำบากมากปีนี้",url:"https://www.facebook.com/groups/115748365681224/permalink/2074511073138267/",cats:["pest"],eng:245,group:"กลุ่มผู้ ปลูกอ้อยอย่างฉลาด"},
+  {rank:17,text:"รอต่อไปครับเงินตามตัดอ้อยโลกสวย 120บาท/ตัน",url:"https://www.facebook.com/groups/115748365681224/permalink/2073132216609486/",cats:["pest"],eng:236,group:"กลุ่มผู้ ปลูกอ้อยอย่างฉลาด"},
+  {rank:18,text:"ขอความรู้ครับถ้าผมเอามาปลูกเสริมเป็นต้นคู่จะมีผลดีเสียอย่างไร พื้นที่ค่อนข้างจำกัดครับ",url:"https://www.facebook.com/groups/677321809576194/permalink/2021455318496163/",cats:["pest"],eng:119,group:"ชมรมผู้ปลูกทุเรียนรายใหม่"},
+  {rank:19,text:"ปาล์มปลูกไว้ 2 ปี โดนน้ำท่วมมันเกือบจะตาย แต่มันแทงยอดออกมาใหม่ ยอดมันเป็นหยิกๆ ต้องดูแลยังคะ",url:"https://www.facebook.com/groups/400145329394050/permalink/1014964147912162/",cats:["pest"],eng:116,group:"คนทำปาล์มน้ำมัน ใหม่"},
+  {rank:20,text:"การพรวนดินในแปลงอ้อยบ่อยๆมันจะเป็นการทำลายรากอ้อยหรือมีข้อเสียกับต้นอ้อยไหมครับ",url:"https://www.facebook.com/groups/1394153090686746/permalink/26633426162999424/",cats:["pest"],eng:105,group:"แชร์ประสบการณ์งานไร่อ้อย"}
+];
+
+const ENG_POSTS = [
+  {rank:1,text:"โกลด์เด้นเทเนอร่าKB4. 100 ต้น พื้นที่ 5ไร่ ระยะปลูก 9.5×9.5 เริ่มเก็บผลผลิต 2 ปี 2 เดือน ผลผลิตรวมทั้งหมด 5,050 กิโลกรัม",url:"https://www.facebook.com/groups/100533496949026/permalink/2931145903887757/",likes:1066,comments:97,shares:8,total:1171,group:"คนปลูกปาล์มน้ำมันแห่งประเทศไทย"},
+  {rank:2,text:"แบบนี้ โดนฝนหนัก มา 2 วันแร้ว จะฟื้นมั้ยคับ ข้าวโพด 45 วัน ฝนทิ้งช่วง เป็นเดือน อำเภอวังน้ำเย็น จังหวัดสระแก้วคับ",url:"https://www.facebook.com/groups/2769628863323669/permalink/4630257580594112/",likes:633,comments:99,shares:4,total:736,group:"ผู้ปลูกข้าวโพดแลกเปลี่ยนประสบการณ์"},
+  {rank:3,text:"ทุเรียนใหญ่ 151 ต้น 7ปี คนดูแลแบ่งเปอเซ็นขอ 15% จากยอดขายสุทธิ ปุ๋ยยาค่าบำรุงเจ้าของสวน แบบนี้ ok ไหมคะ",url:"https://www.facebook.com/groups/398788065112460/permalink/1589019619422626/",likes:450,comments:105,shares:8,total:563,group:"กลุ่มทุเรียนมือใหม่ เรียนรู้ไปด้วยกัน"},
+  {rank:4,text:"นำทุนคืนคักกว่าไพ่ ไฮโล 😆😂🙏",url:"https://www.facebook.com/groups/115748365681224/permalink/2073126566610051/",likes:347,comments:74,shares:8,total:429,group:"กลุ่มผู้ ปลูกอ้อยอย่างฉลาด"},
+  {rank:5,text:"ซ้าย คาลิก600 ขวา ซีพีไฮบริด ปลูกพร้อมกันแปลงเดียวกัน อายุ3ปีเต็ม คาลิกทลายน้ำหนักดีกว่า แต่ซีพีตัดง่ายกว่า",url:"https://www.facebook.com/groups/100533496949026/permalink/2932194123782935/",likes:398,comments:21,shares:2,total:421,group:"คนปลูกปาล์มน้ำมันแห่งประเทศไทย"},
+  {rank:6,text:"เขาเสริมรากกันแบบนี้หรอครับ",url:"https://www.facebook.com/groups/677321809576194/permalink/2021425435165818/",likes:261,comments:89,shares:5,total:355,group:"ชมรมผู้ปลูกทุเรียนรายใหม่"},
+  {rank:7,text:"!!!!! เตรียมตัว !!!!! มิตรภูหลวง ส่งเข้าประกวด",url:"https://www.facebook.com/groups/917776481676002/permalink/27433236343036655/",likes:298,comments:28,shares:2,total:328,group:"สมาคมชาวไร่อ้อยแห่งภาคอีสาน"},
+  {rank:8,text:"สวนทุเรียนข้างบ้านเขาห่อทุเรียนแบบนี้บอกว่ากันแมง กันได้จริงใช่ไหมคะ",url:"https://www.facebook.com/groups/398788065112460/permalink/1589910346000220/",likes:273,comments:36,shares:0,total:309,group:"กลุ่มทุเรียนมือใหม่ เรียนรู้ไปด้วยกัน"},
+  {rank:9,text:"พันธุ์ปาล์ม \"สุราษฎร์ธานี 2\" (Deli x La Me) 🌴 อายุ 6ปี 9เดือน 💚",url:"https://www.facebook.com/groups/400145329394050/permalink/1014556627952914/",likes:273,comments:16,shares:2,total:291,group:"คนทำปาล์มน้ำมัน ใหม่"},
+  {rank:10,text:"โดนคุณหนูกัด น้องยังจะรอดอีกไหมคะ",url:"https://www.facebook.com/groups/400145329394050/permalink/1014469034628340/",likes:230,comments:56,shares:2,total:288,group:"คนทำปาล์มน้ำมัน ใหม่"},
+  {rank:11,text:"อยากให้ปาล์มดก ใส่ปุ๋ย 14-7-35 และ 00-60 ปาล์ม4ปีครึ่ง คับ",url:"https://www.facebook.com/groups/484750284188370/permalink/874456005217794/",likes:234,comments:11,shares:3,total:248,group:"คนปลูกปาล์มมือใหม่"},
+  {rank:12,text:"มีแต่ปัญหาทำอ้อยลำบากมากปีนี้",url:"https://www.facebook.com/groups/115748365681224/permalink/2074511073138267/",likes:208,comments:36,shares:1,total:245,group:"กลุ่มผู้ ปลูกอ้อยอย่างฉลาด"},
+  {rank:13,text:"รอต่อไปครับเงินตามตัดอ้อยโลกสวย 120บาท/ตัน",url:"https://www.facebook.com/groups/115748365681224/permalink/2073132216609486/",likes:205,comments:30,shares:1,total:236,group:"กลุ่มผู้ ปลูกอ้อยอย่างฉลาด"},
+  {rank:14,text:"ต้นนี้3ปีจะแก้ไขยังงัยครับให้ผู้เฒ่าดูแล",url:"https://www.facebook.com/groups/398788065112460/permalink/1589148519409736/",likes:196,comments:24,shares:0,total:220,group:"กลุ่มทุเรียนมือใหม่ เรียนรู้ไปด้วยกัน"},
+  {rank:15,text:"รุปนี้21เมษา ทุเรียนผมจะตัดใด้ตอนไหนครับ ขอคำแนะนำหน่อยครับ",url:"https://www.facebook.com/groups/398788065112460/permalink/1589019149422673/",likes:188,comments:31,shares:0,total:219,group:"กลุ่มทุเรียนมือใหม่ เรียนรู้ไปด้วยกัน"},
+  {rank:16,text:"📣กระทรวงอุตสาหกรรม ย้ำ‼ ดูแลพี่น้องชาวไร่อ้อย เดินหน้าจ่ายเงินช่วยเหลือก่อนเปิดหีบ",url:"https://www.facebook.com/groups/115748365681224/permalink/2074090696513638/",likes:167,comments:41,shares:3,total:211,group:"กลุ่มผู้ ปลูกอ้อยอย่างฉลาด"},
+  {rank:17,text:"สลดกลางสวนปาล์มกระบี่‼️เคียวแทงปาล์มหลุดมือ ปักอกคนงานวัย 41 ดับสลด",url:"https://www.facebook.com/groups/400145329394050/permalink/1014467687961808/",likes:163,comments:26,shares:18,total:207,group:"คนทำปาล์มน้ำมัน ใหม่"},
+  {rank:18,text:"แก้ยังไงดีปีกว่าอยู่เท่าเดิม",url:"https://www.facebook.com/groups/398788065112460/permalink/1589102732747648/",likes:162,comments:42,shares:2,total:206,group:"กลุ่มทุเรียนมือใหม่ เรียนรู้ไปด้วยกัน"},
+  {rank:19,text:"เห็นแล้วหายเหนื่อยที่ดูแลมา 2 ปีเต็ม เริ่มยิ้มได้แร๊ะ🤭💸💸",url:"https://www.facebook.com/groups/484750284188370/permalink/875207118476016/",likes:150,comments:37,shares:2,total:189,group:"คนปลูกปาล์มมือใหม่"},
+  {rank:20,text:"คิดว่าน่าฝน ที่ไหนได้หน้าแล้งค่ะ อาการแบบนี้ฝนตกมาจะหายไหมคะ",url:"https://www.facebook.com/groups/2769628863323669/permalink/4630355993917604/",likes:135,comments:52,shares:0,total:187,group:"ผู้ปลูกข้าวโพดแลกเปลี่ยนประสบการณ์"}
+];
+
+const GROUP_ENG = {"กลุ่มทุเรียนมือใหม่ เรียนรู้ไปด้วยกัน":{"postCount":126,"avgLikes":32.0,"avgComments":7.04,"avgShares":0.21},"คนปลูกปาล์มน้ำมันแห่งประเทศไทย":{"postCount":111,"avgLikes":22.48,"avgComments":4.49,"avgShares":0.13},"คนทำปาล์มน้ำมัน ใหม่":{"postCount":111,"avgLikes":21.01,"avgComments":5.34,"avgShares":0.36},"กลุ่มผู้ ปลูกอ้อยอย่างฉลาด":{"postCount":126,"avgLikes":19.84,"avgComments":3.44,"avgShares":0.56},"คนปลูกปาล์มมือใหม่":{"postCount":99,"avgLikes":15.01,"avgComments":3.84,"avgShares":0.18},"ผู้ปลูกข้าวโพดแลกเปลี่ยนประสบการณ์":{"postCount":129,"avgLikes":14.12,"avgComments":3.33,"avgShares":0.11},"ชมรมผู้ปลูกทุเรียนรายใหม่":{"postCount":123,"avgLikes":7.99,"avgComments":2.33,"avgShares":0.14},"สมาคมชาวไร่อ้อยแห่งภาคอีสาน":{"postCount":108,"avgLikes":5.45,"avgComments":1.06,"avgShares":0.18},"กลุ่มนาข้าว (กระดูกสันหลังของชาติ)":{"postCount":99,"avgLikes":3.85,"avgComments":1.19,"avgShares":0.04},"ชมรมคนปลูกข้าว ชาวนาไทย":{"postCount":22,"avgLikes":2.23,"avgComments":0.18,"avgShares":0.0},"กลุ่มปลูกทุเรียนมือใหม่ภาคอิสาน":{"postCount":120,"avgLikes":1.87,"avgComments":0.93,"avgShares":0.01},"คนปลูกปาล์มน้ำมันภาคใต้":{"postCount":123,"avgLikes":1.71,"avgComments":0.66,"avgShares":0.02},"แชร์ประสบการณ์งานไร่อ้อย":{"postCount":116,"avgLikes":11.47,"avgComments":1.5,"avgShares":0.22},"กลุ่มไร่อ้อย":{"postCount":111,"avgLikes":1.49,"avgComments":0.2,"avgShares":0.02},"ชมรมคนปลูกทุเรียน Durian Growers Club":{"postCount":111,"avgLikes":1.29,"avgComments":0.71,"avgShares":0.0},"กลุ่มคนปลูกข้าวโพด":{"postCount":120,"avgLikes":0.62,"avgComments":0.11,"avgShares":0.02},"่กลุ่มชาวไร่มันสำปะหลัง":{"postCount":87,"avgLikes":0.77,"avgComments":0.17,"avgShares":0.01},"กลุ่มผู้ปลูกมันสำปะหลัง":{"postCount":111,"avgLikes":0.41,"avgComments":0.04,"avgShares":0.0},"ชาวสวน ยางพารา":{"postCount":126,"avgLikes":0.44,"avgComments":0.1,"avgShares":0.0},"ทุเรียนมือใหม่หัดปลูกทุกสายพันธุ์":{"postCount":105,"avgLikes":0.33,"avgComments":0.03,"avgShares":0.0},"กลุ่มผู้ปลูกทุเรียนรายใหม่":{"postCount":76,"avgLikes":0.14,"avgComments":0.11,"avgShares":0.0},"กลุ่ม ข้อมูลผู้ปลูกข้าวโพดสายพันธุ์คนไทยคุณภาพสูง":{"postCount":114,"avgLikes":0.14,"avgComments":0.06,"avgShares":0.0},"กลุ่มเกษตร  คนรักมันสำปะหลัง":{"postCount":12,"avgLikes":0.08,"avgComments":0.0,"avgShares":0.0},"กลุ่มชมรมคนปลูกข้าว ชาวนาไทย ยุคใหม่":{"postCount":114,"avgLikes":0.07,"avgComments":0.03,"avgShares":0.0}};
+
+const CROP_ICONS = {"ทุเรียน":"🥇","อ้อย":"🌿","ปาล์ม":"🌴","ข้าวโพด":"🌽","มันสำปะหลัง":"🍠","ยางพารา":"🌱","ปลา":"🐟","ข้าว":"🌾","ผัก":"🥬","ไก่":"🐔","หมู":"🐷","วัว":"🐄","ไข่":"🥚","กล้วย":"🍌","ลำไย":"🍈","กุ้ง":"🦐","มะม่วง":"🥭"};
+const CAT_LABELS = {"pest":"แมลง/ศัตรูพืช","price_drop":"ราคาตก","disease":"โรค/เชื้อรา","drought_flood":"แล้ง/น้ำท่วม","market_access":"การตลาด","cost_debt":"ต้นทุน/หนี้","yield_quality":"ผลผลิต/คุณภาพ"};
+const CAT_COLORS = {"pest":"#ff6f00","price_drop":"#c62828","disease":"#6a1b9a","drought_flood":"#1565c0","market_access":"#e64a19","cost_debt":"#2e7d32","yield_quality":"#f9a825"};
+const CAT_TAGS = {"pest":"tag-pest","price_drop":"tag-price","disease":"tag-disease","drought_flood":"tag-drought","market_access":"tag-market","cost_debt":"tag-cost","yield_quality":"tag-yield"};
+
+window.addEventListener('load', () => {
+  // Hour chart
+  new Chart(document.getElementById('hourChart'), {
+    type:'bar',
+    data:{labels:Object.keys(HOURS).map(h=>h+':00'),datasets:[{data:Object.values(HOURS),backgroundColor:Object.keys(HOURS).map(h=>h=='16'?'#ff8f00':'#4caf50'),borderRadius:4}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true},x:{ticks:{maxRotation:45,font:{size:9}}}},responsive:true,maintainAspectRatio:false}
+  });
+
+  // Reaction chart
+  new Chart(document.getElementById('reactionChart'), {
+    type:'doughnut',
+    data:{labels:['👍 ถูกใจ','❤️ รัก','😆 ฮา','😮 ว้าว','😢 เศร้า','😡 โกรธ','🤗 ห่วงใย'],datasets:[{data:Object.values(REACTIONS),backgroundColor:['#4caf50','#e91e63','#ff9800','#9c27b0','#2196f3','#f44336','#ff5722']}]},
+    options:{plugins:{legend:{position:'right',labels:{font:{size:10}}}},responsive:true,maintainAspectRatio:false}
+  });
+
+  // Crop overview chart
+  const topCrops = Object.entries(CROPS).slice(0,8);
+  new Chart(document.getElementById('cropOverviewChart'), {
+    type:'bar',
+    data:{labels:topCrops.map(([k])=>k),datasets:[{data:topCrops.map(([,v])=>v),backgroundColor:'#4caf50',borderRadius:4}]},
+    options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true},x:{ticks:{font:{size:10}}}},indexAxis:'y',responsive:true,maintainAspectRatio:false}
+  });
+
+  // Pain overview chart
+  new Chart(document.getElementById('painOverviewChart'), {
+    type:'doughnut',
+    data:{labels:Object.keys(PAIN_CATS).map(k=>CAT_LABELS[k]),datasets:[{data:Object.values(PAIN_CATS),backgroundColor:Object.keys(PAIN_CATS).map(k=>CAT_COLORS[k])}]},
+    options:{plugins:{legend:{position:'right',labels:{font:{size:10}}}},responsive:true,maintainAspectRatio:false}
+  });
+
+  // Pain detail bar chart
+  new Chart(document.getElementById('painDetailChart'), {
+    type:'bar',
+    data:{labels:Object.keys(PAIN_CATS).map(k=>CAT_LABELS[k]),datasets:[{data:Object.values(PAIN_CATS),backgroundColor:Object.keys(PAIN_CATS).map(k=>CAT_COLORS[k]),borderRadius:4}]},
+    options:{plugins:{legend:{display:false}},indexAxis:'y',scales:{x:{beginAtZero:true}},responsive:true,maintainAspectRatio:false}
+  });
+
+  // Pain post list
+  const painList = document.getElementById('painPostList');
+  PAIN_POSTS.forEach(p => {
+    const tags = p.cats.map(c=>`<span class="tag ${CAT_TAGS[c]||''}">${CAT_LABELS[c]||c}</span>`).join('');
+    painList.innerHTML += `<div class="post-item" onclick="window.open('${p.url}','_blank')">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div class="post-rank">${p.rank}</div>
+        <div style="flex:1">
+          <div class="post-text">${p.text}</div>
+          <div class="post-meta">
+            <span>📍 ${p.group}</span>
+            <span>⚡ ${p.eng} การมีส่วนร่วม</span>
+            <span>${tags}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  // Keyword word cloud
+  const cloud = document.getElementById('wordCloud');
+  const maxCount = KEYWORDS[0].count;
+  KEYWORDS.slice(0,60).forEach((kw,i) => {
+    const ratio = kw.count / maxCount;
+    let cls = ratio > 0.8 ? 'kw-1' : ratio > 0.6 ? 'kw-2' : ratio > 0.4 ? 'kw-3' : ratio > 0.25 ? 'kw-4' : ratio > 0.15 ? 'kw-5' : 'kw-6';
+    cloud.innerHTML += `<span class="kw-bubble ${cls}" title="${kw.count} mentions">${kw.word}</span>`;
+  });
+
+  // Keyword bar chart (top 20)
+  new Chart(document.getElementById('kwBarChart'), {
+    type:'bar',
+    data:{labels:KEYWORDS.slice(0,20).map(k=>k.word),datasets:[{data:KEYWORDS.slice(0,20).map(k=>k.count),backgroundColor:'#4caf50',borderRadius:4}]},
+    options:{plugins:{legend:{display:false}},indexAxis:'y',scales:{x:{beginAtZero:true}},responsive:true,maintainAspectRatio:false}
+  });
+
+  // Keyword full table
+  const kwTb = document.getElementById('kwTableBody');
+  KEYWORDS.forEach((kw,i) => {
+    const barW = Math.round(kw.count / maxCount * 100);
+    kwTb.innerHTML += `<tr><td>${i+1}</td><td>${kw.word}</td><td>${kw.count}</td><td><div class="theme-bar-bg" style="width:120px"><div class="theme-bar-fill" style="width:${barW}%;background:#4caf50"></div></div></td></tr>`;
+  });
+
+  // Group engagement chart (top 15 by avg likes)
+  const topGroups = Object.entries(GROUP_ENG).sort((a,b)=>b[1].avgLikes-a[1].avgLikes).slice(0,15);
+  new Chart(document.getElementById('groupEngChart'), {
+    type:'bar',
+    data:{labels:topGroups.map(([k])=>k.length>18?k.slice(0,18)+'…':k),datasets:[{label:'ไลก์เฉลี่ย',data:topGroups.map(([,v])=>v.avgLikes),backgroundColor:'#4caf50',borderRadius:3},{label:'คอมเมนต์เฉลี่ย',data:topGroups.map(([,v])=>v.avgComments),backgroundColor:'#ff8f00',borderRadius:3}]},
+    options:{plugins:{legend:{position:'top',labels:{font:{size:10}}}},indexAxis:'y',scales:{x:{beginAtZero:true,stacked:false}},responsive:true,maintainAspectRatio:false}
+  });
+
+  // Engagement post list
+  const engList = document.getElementById('engPostList');
+  ENG_POSTS.forEach(p => {
+    engList.innerHTML += `<div class="post-item" onclick="window.open('${p.url}','_blank')">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div class="post-rank">${p.rank}</div>
+        <div style="flex:1">
+          <div class="post-text">${p.text}</div>
+          <div class="post-meta">
+            <span>📍 ${p.group}</span>
+            <span>👍 ${p.likes}</span>
+            <span>💬 ${p.comments}</span>
+            <span>↗️ ${p.shares}</span>
+            <span>⚡ ${p.total}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  // Group table
+  const grpTb = document.getElementById('groupTableBody');
+  const maxAvgLikes = Math.max(...Object.values(GROUP_ENG).map(g=>g.avgLikes));
+  Object.entries(GROUP_ENG).sort((a,b)=>b[1].avgLikes-a[1].avgLikes).forEach(([name, g]) => {
+    const barW = Math.round(g.avgLikes / maxAvgLikes * 80);
+    grpTb.innerHTML += `<tr><td>${name}</td><td>${g.postCount}</td><td>${g.avgLikes.toFixed(1)}</td><td>${g.avgComments.toFixed(2)}</td><td>${g.avgShares.toFixed(2)}</td><td><div class="theme-bar-bg" style="width:100px"><div class="theme-bar-fill" style="width:${barW}%;background:#4caf50"></div></div></td></tr>`;
+  });
+
+  // Crop grid
+  const cropGrid = document.getElementById('cropGrid');
+  Object.entries(CROPS).forEach(([name, count]) => {
+    cropGrid.innerHTML += `<div class="crop-tag"><div class="crop-icon">${CROP_ICONS[name]||'🌿'}</div><div class="crop-name">${name}</div><div class="crop-count">${count}</div></div>`;
+  });
+
+  // Crop detail bar chart
+  new Chart(document.getElementById('cropDetailChart'), {
+    type:'bar',
+    data:{labels:Object.keys(CROPS),datasets:[{data:Object.values(CROPS),backgroundColor:['#ff6f00','#4caf50','#2196f3','#ff9800','#9c27b0','#00bcd4','#607d8b','#8bc34a','#e91e63','#795548','#ff5722','#03a9f4','#cddc39','#f44336','#673ab7','#009688','#ffc107'],borderRadius:4}]},
+    options:{plugins:{legend:{display:false}},indexAxis:'y',scales:{x:{beginAtZero:true}},responsive:true,maintainAspectRatio:false}
+  });
+
+  // Crop pie
+  new Chart(document.getElementById('cropPieChart'), {
+    type:'pie',
+    data:{labels:Object.keys(CROPS),datasets:[{data:Object.values(CROPS),backgroundColor:['#ff6f00','#4caf50','#2196f3','#ff9800','#9c27b0','#00bcd4','#607d8b','#8bc34a','#e91e63','#795548','#ff5722','#03a9f4','#cddc39','#f44336','#673ab7','#009688','#ffc107']}]},
+    options:{plugins:{legend:{position:'right',labels:{font:{size:11}}}},responsive:true,maintainAspectRatio:false}
+  });
+});
+</script>
+</body>
+</html>

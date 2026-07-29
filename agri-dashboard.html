@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>แดชบอร์ดราคาพืชและเตือนภัยการผลิต</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --green:#1f7a3d; --green-d:#155a2c; --green-l:#e8f5ec; --green-l2:#d4ecdb;
+    --amber:#d97706; --amber-l:#fef3e2; --red:#dc2626; --red-l:#fdecec;
+    --ink:#1f2937; --muted:#6b7280; --line:#e5e7eb; --bg:#f4f6f5; --card:#ffffff;
+    --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Sarabun',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
+  h1,h2,h3,.f-kanit{font-family:'Kanit',sans-serif;font-weight:600}
+  header{background:linear-gradient(135deg,var(--green),var(--green-d));color:#fff;padding:22px 26px}
+  header .wrap{max-width:1240px;margin:0 auto}
+  header h1{margin:0;font-size:26px;letter-spacing:.2px}
+  header p{margin:6px 0 0;opacity:.92;font-size:14px}
+  header a{color:#d9f2e0;text-decoration:underline}
+  .container{max-width:1240px;margin:0 auto;padding:22px 26px 60px}
+  .tabs{display:flex;gap:8px;margin:-16px auto 0;max-width:1240px;padding:0 26px}
+  .tab{flex:0 0 auto;background:#fff;border:1px solid var(--line);border-bottom:none;
+    padding:12px 22px;border-radius:12px 12px 0 0;cursor:pointer;font-family:'Kanit',sans-serif;
+    font-weight:500;color:var(--muted);box-shadow:var(--shadow);transition:.15s}
+  .tab.active{color:var(--green-d);background:#fff;border-color:var(--green);border-bottom:3px solid var(--green);transform:translateY(1px)}
+  .tab:hover{color:var(--green)}
+  .panel{display:none;animation:fade .25s}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .controls{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;background:var(--card);
+    padding:16px 18px;border-radius:12px;box-shadow:var(--shadow);margin-bottom:18px}
+  .ctrl{display:flex;flex-direction:column;gap:5px}
+  .ctrl label{font-size:12.5px;color:var(--muted);font-weight:600}
+  select,input[type=search]{font-family:inherit;font-size:14.5px;padding:9px 12px;border:1px solid var(--line);
+    border-radius:9px;background:#fff;color:var(--ink);min-width:180px;outline:none}
+  select:focus,input:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-l)}
+  .src-note{font-size:12.5px;color:var(--muted);margin-left:auto;max-width:340px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:18px}
+  .kpi{background:var(--card);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow);border-left:4px solid var(--green)}
+  .kpi .v{font-family:'Kanit',sans-serif;font-size:24px;font-weight:600;color:var(--green-d)}
+  .kpi .l{font-size:13px;color:var(--muted);margin-top:2px}
+  .kpi.hi{border-left-color:var(--red)} .kpi.hi .v{color:var(--red)}
+  .kpi.lo{border-left-color:#2563eb} .kpi.lo .v{color:#2563eb}
+  .kpi small{font-size:12px;color:var(--muted);font-weight:400;display:block}
+  .grid2{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+  @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  .card{background:var(--card);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+  .card h3{margin:0 0 12px;font-size:16px;color:var(--green-d)}
+  .chart-box{position:relative;height:440px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line)}
+  th{position:sticky;top:0;background:var(--green-l);color:var(--green-d);font-family:'Kanit',sans-serif;
+    font-weight:500;font-size:13px;cursor:pointer;white-space:nowrap}
+  th:hover{background:var(--green-l2)}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  tbody tr:hover{background:var(--green-l)}
+  .tbl-scroll{max-height:520px;overflow:auto;border-radius:8px}
+  .chip{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600}
+  .up{background:var(--red-l);color:var(--red)} .down{background:var(--green-l);color:var(--green-d)} .flat{background:#f1f2f4;color:var(--muted)}
+  .cat-badge{font-size:11.5px;color:var(--muted)}
+  /* warning */
+  .weather{background:linear-gradient(135deg,var(--amber-l),#fff);border:1px solid #f4d9a8;border-radius:12px;
+    padding:14px 18px;margin-bottom:18px;display:flex;gap:12px;align-items:center}
+  .weather .ico{font-size:30px}
+  .weather b{color:var(--amber)}
+  .crop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+  .crop-card{background:var(--card);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;border-top:4px solid var(--green)}
+  .crop-card .head{padding:14px 16px;background:var(--green-l);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .crop-card .head h3{margin:0;font-size:17px;color:var(--green-d)}
+  .crop-card .stage{font-size:12px;color:var(--muted);background:#fff;padding:3px 10px;border-radius:20px;white-space:nowrap}
+  .crop-card .body{padding:6px 16px 14px}
+  .threat{padding:12px 0;border-bottom:1px dashed var(--line)}
+  .threat:last-child{border-bottom:none}
+  .threat .tname{font-family:'Kanit',sans-serif;font-weight:500;color:var(--red);font-size:14.5px;display:flex;gap:6px;align-items:center}
+  .threat .tname .dot{width:8px;height:8px;border-radius:50%;background:var(--red);flex:0 0 auto}
+  .threat .lab{font-size:12px;color:var(--amber);font-weight:700;margin-top:8px;text-transform:uppercase;letter-spacing:.3px}
+  .threat p{margin:3px 0 0;font-size:13.5px;color:#374151}
+  .count-pill{background:var(--green);color:#fff;font-size:12px;padding:2px 9px;border-radius:20px;font-weight:600}
+  footer{max-width:1240px;margin:0 auto;padding:0 26px 40px;color:var(--muted);font-size:13px}
+  .empty{padding:40px;text-align:center;color:var(--muted)}
+  .legend-note{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>🌱 แดชบอร์ดราคาพืชและเตือนภัยการผลิตทางการเกษตร</h1>
+    <p>รวบรวมข้อมูลจาก <a href="https://drive.google.com/drive/folders/1Ndo-fHQnKNn6jfK1E0HZQeKX4Datstxu" target="_blank">Google Drive</a>
+       · ราคาจาก 3 แหล่ง (สศก. / ตลาดไทย / กรมการค้าภายใน) และคำเตือนภัยการผลิตพืชจากกรมวิชาการเกษตร
+       · <span id="lastUpdate"></span></p>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-tab="price">📊 ราคาพืชทุกชนิด</button>
+  <button class="tab" data-tab="warn">⚠️ เตือนภัยการผลิต</button>
+</div>
+
+<div class="container">
+
+  <!-- ============ PRICE PANEL ============ -->
+  <section id="panel-price" class="panel active">
+    <div class="controls">
+      <div class="ctrl">
+        <label for="fSource">แหล่งราคา</label>
+        <select id="fSource"></select>
+      </div>
+      <div class="ctrl">
+        <label for="fPeriod">ช่วงข้อมูล (สัปดาห์)</label>
+        <select id="fPeriod"></select>
+      </div>
+      <div class="ctrl">
+        <label for="fCat">หมวดพืช</label>
+        <select id="fCat"></select>
+      </div>
+      <div class="ctrl">
+        <label for="fSearch">ค้นหาชนิดพืช</label>
+        <input type="search" id="fSearch" placeholder="พิมพ์ชื่อพืช เช่น ทุเรียน, คะน้า...">
+      </div>
+      <div class="src-note" id="srcNote"></div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3 id="chartTitle">ราคาต่อกิโลกรัม (โดยประมาณ)</h3>
+        <div class="chart-box"><canvas id="priceChart"></canvas></div>
+        <div class="legend-note" id="chartNote"></div>
+      </div>
+      <div class="card">
+        <h3>ตารางราคา <span id="rowCount" class="count-pill"></span></h3>
+        <div class="tbl-scroll">
+          <table id="priceTable">
+            <thead id="priceThead"></thead>
+            <tbody id="priceTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ WARNING PANEL ============ -->
+  <section id="panel-warn" class="panel">
+    <div class="controls">
+      <div class="ctrl">
+        <label for="wPeriod">ช่วงข้อมูล</label>
+        <select id="wPeriod"></select>
+      </div>
+      <div class="ctrl">
+        <label for="wCrop">เลือกพืช</label>
+        <select id="wCrop"></select>
+      </div>
+      <div class="src-note">ที่มา: คณะทำงานพยากรณ์และเตือนภัยศัตรูพืช กรมวิชาการเกษตร (at.doa.go.th/ew)</div>
+    </div>
+    <div class="weather" id="weatherBox"></div>
+    <div class="crop-grid" id="cropGrid"></div>
+  </section>
+
+</div>
+
+<footer>
+  <p>💡 <b>การอัปเดตรายสัปดาห์:</b> ข้อมูลถูกฝังไว้ในไฟล์นี้ โครงสร้างจัดเก็บแยกตาม “แหล่ง → สัปดาห์”
+     เมื่อมีไฟล์ใหม่ในโฟลเดอร์ Drive เพียงเพิ่มชุดข้อมูลของสัปดาห์ใหม่เข้าไปในตัวแปร <code>DATA</code>
+     แล้วรายการในเมนู “ช่วงข้อมูล” จะปรากฏโดยอัตโนมัติ</p>
+</footer>
+
+<script>
+/* =========================================================================
+   ข้อมูลทั้งหมดฝังไว้ที่นี่ — จัดเก็บแบบ แหล่ง -> สัปดาห์ -> แถวข้อมูล
+   เพิ่มสัปดาห์ใหม่ = เพิ่ม key วันที่ใหม่ใต้ weeks ของแต่ละแหล่ง
+   ========================================================================= */
+const DATA = {
+  meta:{ generated:"2026-07-28" },
+
+  price:{
+    /* -------- แหล่ง 1: สำนักงานเศรษฐกิจการเกษตร (OAE) -------- */
+    oae:{
+      label:"สำนักงานเศรษฐกิจการเกษตร (สศก.)",
+      note:"ราคาที่เกษตรกรขายได้ที่ไร่–นา เฉลี่ยระดับประเทศ (รายสัปดาห์). ตัวเลขคือค่าเฉลี่ยของเดือน. หน่วยแตกต่างกันตามชนิดสินค้า.",
+      type:"oae",
+      weeks:{
+        "2026-07-24":[
+          // product, group, unit, weekly[], avg
+          ["ข้าวเปลือกเจ้าหอมมะลิ","ข้าว/ธัญพืช","บาท/ตัน",[16443,16430,16428],16434],
+          ["ข้าวเหนียวนาปียาว","ข้าว/ธัญพืช","บาท/ตัน",[11743,11646,11759],11716],
+          ["ข้าวเปลือกเจ้า ความชื้น 15%","ข้าว/ธัญพืช","บาท/ตัน",[8189,8358,8324],8290],
+          ["ข้าวโพดเลี้ยงสัตว์ ความชื้น 14.5%","ข้าว/ธัญพืช","บาท/กก.",[8.66,8.55,8.55],8.59],
+          ["มันสำปะหลังสด","พืชไร่","บาท/กก.",[2.79,2.83,2.96],2.86],
+          ["มันเส้น","พืชไร่","บาท/กก.",[5.62,5.73,5.61],5.65],
+          ["สับปะรดปัตตาเวีย (ส่งโรงงาน)","พืชไร่","บาท/กก.",[8.28,8.73,8.83],8.61],
+          ["ผลปาล์มน้ำมันทั้งทะลายคละ","พืชน้ำมัน","บาท/กก.",[8.01,8.09,8.60],8.23],
+          ["มะพร้าวแห้งใหญ่","พืชน้ำมัน","บาท/100 ผล",[607,601,610],606],
+          ["ยางแผ่นดิบ ชั้น 3","ยางพารา","บาท/กก.",[79.58,82.02,81.88],81.16],
+          ["น้ำยางสด","ยางพารา","บาท/กก.",[72.22,74.21,73.84],73.42],
+          ["ยางก้อน","ยางพารา","บาท/กก.",[36.19,36.96,37.05],36.73],
+          ["เศษยาง","ยางพารา","บาท/กก.",[33.11,34.01,34.65],33.92],
+          ["ทุเรียนหมอนทอง","ไม้ผล","บาท/กก.",[74.66,73.52,78.58],75.59],
+          ["มังคุด","ไม้ผล","บาท/กก.",[23.88,22.40,23.30],23.19],
+          ["เงาะโรงเรียน","ไม้ผล","บาท/กก.",[22.93,24.72,29.09],25.58],
+          ["ลำไยสดทั้งช่อ อีดอ เกรด AA","ไม้ผล","บาท/กก.",[34.16,29.66,27.89],30.57],
+          ["ลำไยสดทั้งช่อ อีดอ เกรด A","ไม้ผล","บาท/กก.",[29.04,27.03,25.36],27.14],
+          ["ลองกอง เบอร์ 1","ไม้ผล","บาท/กก.",[45.72,46.48,48.50],46.90],
+          ["พริกไทยดำ คละ","เครื่องเทศ","บาท/กก.",[350.07,350.07,350.06],350.07],
+          ["โคพันธุ์ลูกผสม ขนาดกลาง","ปศุสัตว์และประมง","บาท/ตัว",[20684,20709,20499],20631],
+          ["กระบือ ขนาดกลาง","ปศุสัตว์และประมง","บาท/ตัว",[27303,27408,27314],27342],
+          ["สุกร น้ำหนักเกิน 100 กก.","ปศุสัตว์และประมง","บาท/กก.",[66.14,65.62,66.30],66.02],
+          ["ไก่รุ่นพันธุ์เนื้อ (ฟาร์มอิสระ)","ปศุสัตว์และประมง","บาท/กก.",[40.22,40.28,40.22],40.24],
+          ["ไข่ไก่สด คละ","ปศุสัตว์และประมง","บาท/100 ฟอง",[365,366,368],367],
+          ["ไข่ไก่สด เบอร์ 3","ปศุสัตว์และประมง","บาท/100 ฟอง",[368,369,370],369],
+          ["กุ้งขาวแวนนาไม (70 ตัว/กก.)","ปศุสัตว์และประมง","บาท/กก.",[125,129,138],131],
+          ["น้ำนมดิบ","ปศุสัตว์และประมง","บาท/กก.",[21.28,21.39,21.37],21.35]
+        ]
+      }
+    },
+
+    /* -------- แหล่ง 2: ตลาดไทย -------- */
+    talaadthai:{
+      label:"ตลาดไทย",
+      note:"ราคาขายส่งรายวันที่ตลาดไทย (ผัก/สมุนไพร และผลไม้). ตัวเลขเป็นราคาต่ำสุด–สูงสุด และ % เปลี่ยนแปลงจากช่วงก่อน.",
+      type:"talaadthai",
+      weeks:{
+        "2026-07-27":[
+          // product, group, unit, min, max, change%, market
+          ["มะนาวเบอร์ 400/กระสอบ","ผักและสมุนไพร","กระสอบ",350,500,0,"ตลาดผักและสมุนไพร 1"],
+          ["มะนาว 500 ลูก/กระสอบ","ผักและสมุนไพร","กระสอบ",250,300,0,"ตลาดผักและสมุนไพร 1"],
+          ["มะนาว 600 ลูก/กระสอบ","ผักและสมุนไพร","กระสอบ",150,200,0,"ตลาดผักและสมุนไพร 1"],
+          ["ถั่วฝักยาว","ผักและสมุนไพร","กก.",30,50,0,"ตลาดผักและสมุนไพร 2"],
+          ["ผักชีไทย","ผักและสมุนไพร","กก.",80,100,0,"ตลาดผักและสมุนไพร 2"],
+          ["มะเขือเปราะ","ผักและสมุนไพร","กก.",25,28,0,"ตลาดผักและสมุนไพร 2"],
+          ["ต้นหอม","ผักและสมุนไพร","กก.",100,120,0,"ตลาดผักและสมุนไพร 2"],
+          ["คึ่นช่าย (ตั้งโอ๋ไทย)","ผักและสมุนไพร","กก.",90,100,0,"ตลาดผักและสมุนไพร 2"],
+          ["พริกขี้หนูแดง (ซุปเปอร์ฮ็อต)","ผักและสมุนไพร","กก.",40,50,0,"ตลาดผักและสมุนไพร 2"],
+          ["พริกขี้หนูสวน (เม็ดใหญ่-เล็ก)","ผักและสมุนไพร","กก.",80,220,0,"ตลาดผักและสมุนไพร 2"],
+          ["ผักบุ้งจีน","ผักและสมุนไพร","ถุง",90,100,0,"ตลาดผักและสมุนไพร 2"],
+          ["ตะไคร้","ผักและสมุนไพร","กก.",20,25,0,"ตลาดผักและสมุนไพร 2"],
+          ["กรีนโอ๊ค","ผักและสมุนไพร","กก.",100,120,0,"ตลาดผักและสมุนไพร 1"],
+          ["มะเขือเทศสีดา","ผักและสมุนไพร","กก.",28,50,-9.09,"ตลาดผักและสมุนไพร 1"],
+          ["ใบโหระพา","ผักและสมุนไพร","กก.",30,40,0,"ตลาดผักและสมุนไพร 1"],
+          ["คะน้าต้น","ผักและสมุนไพร","กก.",40,46,0,"ตลาดผักและสมุนไพร 2"],
+          ["ผักกาดหอม","ผักและสมุนไพร","กก.",50,70,0,"ตลาดผักและสมุนไพร 1"],
+          ["ใบกระเพรา","ผักและสมุนไพร","กก.",20,30,0,"ตลาดผักและสมุนไพร 2"],
+          ["เห็ดนางฟ้าภูฐาน","ผักและสมุนไพร","กก.",130,140,0,"ตลาดผักและสมุนไพร 2"],
+          ["ผักชีฝรั่ง","ผักและสมุนไพร","กก.",50,60,0,"ตลาดผักและสมุนไพร 2"],
+          ["กวางตุ้ง","ผักและสมุนไพร","กก.",16,20,0,"ตลาดผักและสมุนไพร 2"],
+          ["มะเขือพวง (เด็ด)","ผักและสมุนไพร","กก.",100,120,0,"ตลาดผักและสมุนไพร 2"],
+          ["กะหล่ำปลี (แต่งผล)","ผักและสมุนไพร","กก.",20,25,0,"ตลาดผักและสมุนไพร 2"],
+          ["ฟักทองทองอำไพ เบอร์กลาง","ผักและสมุนไพร","กก.",25,26,0,"ตลาดผักและสมุนไพร 1"],
+          ["พริกขี้หนูเขียว (ซุปเปอร์ฮ็อต)","ผักและสมุนไพร","กก.",45,55,0,"ตลาดผักและสมุนไพร 2"],
+          ["หอมแดง","ผักและสมุนไพร","กก.",50,90,0,"ตลาดผักและสมุนไพร 1"],
+          ["ฟักแก่","ผักและสมุนไพร","กก.",9,15,0,"ตลาดผักและสมุนไพร 1"],
+          ["มะเขือเทศท้อแดง","ผักและสมุนไพร","กก.",14,35,0,"ตลาดผักและสมุนไพร 1"],
+          ["แตงร้าน","ผักและสมุนไพร","กก.",18,20,0,"ตลาดผักและสมุนไพร 2"],
+          ["ข่าแก่","ผักและสมุนไพร","กก.",30,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["พริกขี้หนูแดง (จินดา)","ผักและสมุนไพร","กก.",40,50,0,"ตลาดผักและสมุนไพร 2"],
+          ["ชะอม","ผักและสมุนไพร","กก.",60,80,0,"ตลาดผักและสมุนไพร 2"],
+          ["ผักชีลาว","ผักและสมุนไพร","กก.",30,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["มะระจีน","ผักและสมุนไพร","กก.",38,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["ถั่วพู","ผักและสมุนไพร","กก.",120,150,0,"ตลาดผักและสมุนไพร 2"],
+          ["มะเขือยาว","ผักและสมุนไพร","กก.",32,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["กระเทียมไทย เบอร์กลาง","ผักและสมุนไพร","กก.",69,90,0,"ตลาดผักและสมุนไพร 1"],
+          ["มะเขือเทศราชินี","ผักและสมุนไพร","กก.",100,160,-5.88,"ตลาดผักและสมุนไพร 1"],
+          ["ผักกาดขาว (ลุ้ยไม่แต่งผล)","ผักและสมุนไพร","กก.",15,16,0,"ตลาดผักและสมุนไพร 2"],
+          ["ใบแมงลัก","ผักและสมุนไพร","กก.",30,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["หน่อไม้ไผ่ตง","ผักและสมุนไพร","กก.",35,45,0,"ตลาดผักและสมุนไพร 2"],
+          ["แตงกวาอ่อน","ผักและสมุนไพร","กก.",28,36,0,"ตลาดผักและสมุนไพร 2"],
+          ["กระชายหัว","ผักและสมุนไพร","กก.",30,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["ใบมะกรูด","ผักและสมุนไพร","กก.",30,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["สะระแหน่","ผักและสมุนไพร","กก.",60,100,0,"ตลาดผักและสมุนไพร 2"],
+          ["กระเจี๊ยบเขียว","ผักและสมุนไพร","กก.",40,50,0,"ตลาดผักและสมุนไพร 2"],
+          ["มะเขือพวง (ไม่เด็ด)","ผักและสมุนไพร","กก.",80,90,0,"ตลาดผักและสมุนไพร 2"],
+          ["หัวไชเท้า","ผักและสมุนไพร","กก.",25,30,0,"ตลาดผักและสมุนไพร 1"],
+          ["ทุเรียนหมอนทอง เบอร์ใหญ่","ผลไม้","กก.",90,100,0,"ตลาดผลไม้ฤดูกาล"],
+          ["ทุเรียนหมอนทอง เบอร์เล็ก","ผลไม้","กก.",55,60,0,"ตลาดผลไม้ฤดูกาล"],
+          ["ฝรั่งกิมจู เบอร์ใหญ่","ผลไม้","กก.",38,40,0,"ตลาดผลไม้รวม"],
+          ["เงาะโรงเรียน (คละ)","ผลไม้","กก.",20,23,0,"ตลาดผลไม้ฤดูกาล"],
+          ["ชมพู่ทับทิมจันทร์ เบอร์ใหญ่","ผลไม้","กก.",75,80,0,"ตลาดผลไม้รวม"],
+          ["มังคุดมัน เบอร์ใหญ่","ผลไม้","กก.",30,30,0,"ตลาดผลไม้ฤดูกาล"],
+          ["กล้วยน้ำว้า เบอร์กลาง","ผลไม้","หวี",28,30,0,"ตลาดผลไม้ฤดูกาล"],
+          ["ลำไยอีดอ เบอร์ใหญ่","ผลไม้","กก.",35,38,0,"ตลาดผลไม้ฤดูกาล"]
+        ],
+        "2026-07-22":[
+          ["มะนาวเบอร์ 400/กระสอบ","ผักและสมุนไพร","กระสอบ",350,500,11.11,"ตลาดผักและสมุนไพร 1"],
+          ["มะนาว 500 ลูก/กระสอบ","ผักและสมุนไพร","กระสอบ",250,300,0,"ตลาดผักและสมุนไพร 1"],
+          ["มะนาว 600 ลูก/กระสอบ","ผักและสมุนไพร","กระสอบ",150,200,0,"ตลาดผักและสมุนไพร 1"],
+          ["ถั่วฝักยาว","ผักและสมุนไพร","กก.",30,50,0,"ตลาดผักและสมุนไพร 2"],
+          ["ผักชีไทย","ผักและสมุนไพร","กก.",100,120,0,"ตลาดผักและสมุนไพร 2"],
+          ["มะเขือเปราะ","ผักและสมุนไพร","กก.",25,28,0,"ตลาดผักและสมุนไพร 2"],
+          ["ต้นหอม","ผักและสมุนไพร","กก.",100,120,0,"ตลาดผักและสมุนไพร 2"],
+          ["คึ่นช่าย (ตั้งโอ๋ไทย)","ผักและสมุนไพร","กก.",100,120,0,"ตลาดผักและสมุนไพร 2"],
+          ["พริกขี้หนูแดง (ซุปเปอร์ฮ็อต)","ผักและสมุนไพร","กก.",40,50,-16.67,"ตลาดผักและสมุนไพร 2"],
+          ["พริกขี้หนูสวน (เม็ดใหญ่-เล็ก)","ผักและสมุนไพร","กก.",80,220,0,"ตลาดผักและสมุนไพร 2"],
+          ["ผักบุ้งจีน","ผักและสมุนไพร","ถุง",90,100,0,"ตลาดผักและสมุนไพร 2"],
+          ["ตะไคร้","ผักและสมุนไพร","กก.",20,25,0,"ตลาดผักและสมุนไพร 2"],
+          ["กรีนโอ๊ค","ผักและสมุนไพร","กก.",100,120,0,"ตลาดผักและสมุนไพร 1"],
+          ["มะเขือเทศสีดา","ผักและสมุนไพร","กก.",24,55,-15.38,"ตลาดผักและสมุนไพร 1"],
+          ["ใบโหระพา","ผักและสมุนไพร","กก.",30,40,14.29,"ตลาดผักและสมุนไพร 1"],
+          ["คะน้าต้น","ผักและสมุนไพร","กก.",40,46,0,"ตลาดผักและสมุนไพร 2"],
+          ["ผักกาดหอม","ผักและสมุนไพร","กก.",50,70,0,"ตลาดผักและสมุนไพร 1"],
+          ["ใบกระเพรา","ผักและสมุนไพร","กก.",20,30,0,"ตลาดผักและสมุนไพร 2"],
+          ["เห็ดนางฟ้าภูฐาน","ผักและสมุนไพร","กก.",130,140,0,"ตลาดผักและสมุนไพร 2"],
+          ["ผักชีฝรั่ง","ผักและสมุนไพร","กก.",50,60,0,"ตลาดผักและสมุนไพร 2"],
+          ["กวางตุ้ง","ผักและสมุนไพร","กก.",16,20,0,"ตลาดผักและสมุนไพร 2"],
+          ["มะเขือพวง (เด็ด)","ผักและสมุนไพร","กก.",50,70,16.67,"ตลาดผักและสมุนไพร 2"],
+          ["กะหล่ำปลี (แต่งผล)","ผักและสมุนไพร","กก.",15,25,0,"ตลาดผักและสมุนไพร 2"],
+          ["ฟักทองทองอำไพ เบอร์กลาง","ผักและสมุนไพร","กก.",20,24,20,"ตลาดผักและสมุนไพร 1"],
+          ["พริกขี้หนูเขียว (ซุปเปอร์ฮ็อต)","ผักและสมุนไพร","กก.",45,55,-8.33,"ตลาดผักและสมุนไพร 2"],
+          ["หอมแดง","ผักและสมุนไพร","กก.",65,100,0,"ตลาดผักและสมุนไพร 1"],
+          ["ฟักแก่","ผักและสมุนไพร","กก.",13,15,0,"ตลาดผักและสมุนไพร 1"],
+          ["มะเขือเทศท้อแดง","ผักและสมุนไพร","กก.",32,45,0,"ตลาดผักและสมุนไพร 1"],
+          ["แตงร้าน","ผักและสมุนไพร","กก.",18,20,0,"ตลาดผักและสมุนไพร 2"],
+          ["ข่าแก่","ผักและสมุนไพร","กก.",30,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["พริกขี้หนูแดง (จินดา)","ผักและสมุนไพร","กก.",40,50,-16.67,"ตลาดผักและสมุนไพร 2"],
+          ["ชะอม","ผักและสมุนไพร","กก.",60,80,0,"ตลาดผักและสมุนไพร 2"],
+          ["ผักชีลาว","ผักและสมุนไพร","กก.",40,60,0,"ตลาดผักและสมุนไพร 2"],
+          ["มะระจีน","ผักและสมุนไพร","กก.",38,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["ถั่วพู","ผักและสมุนไพร","กก.",120,150,25,"ตลาดผักและสมุนไพร 2"],
+          ["มะเขือยาว","ผักและสมุนไพร","กก.",32,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["กระเทียมไทย เบอร์กลาง","ผักและสมุนไพร","กก.",69,90,0,"ตลาดผักและสมุนไพร 1"],
+          ["มะเขือเทศราชินี","ผักและสมุนไพร","กก.",100,180,0,"ตลาดผักและสมุนไพร 1"],
+          ["ผักกาดขาว (ลุ้ยไม่แต่งผล)","ผักและสมุนไพร","กก.",12,16,0,"ตลาดผักและสมุนไพร 2"],
+          ["ใบแมงลัก","ผักและสมุนไพร","กก.",30,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["หน่อไม้ไผ่ตง","ผักและสมุนไพร","กก.",35,45,0,"ตลาดผักและสมุนไพร 2"],
+          ["แตงกวาอ่อน","ผักและสมุนไพร","กก.",28,36,0,"ตลาดผักและสมุนไพร 2"],
+          ["กระชายหัว","ผักและสมุนไพร","กก.",30,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["ใบมะกรูด","ผักและสมุนไพร","กก.",30,40,0,"ตลาดผักและสมุนไพร 2"],
+          ["สะระแหน่","ผักและสมุนไพร","กก.",60,100,0,"ตลาดผักและสมุนไพร 2"],
+          ["กระเจี๊ยบเขียว","ผักและสมุนไพร","กก.",40,50,0,"ตลาดผักและสมุนไพร 2"],
+          ["มะเขือพวง (ไม่เด็ด)","ผักและสมุนไพร","กก.",40,60,20,"ตลาดผักและสมุนไพร 2"],
+          ["หัวไชเท้า","ผักและสมุนไพร","กก.",25,30,0,"ตลาดผักและสมุนไพร 1"],
+          ["ทุเรียนหมอนทอง เบอร์ใหญ่","ผลไม้","กก.",90,100,-16.67,"ตลาดผลไม้ฤดูกาล"],
+          ["ทุเรียนหมอนทอง เบอร์เล็ก","ผลไม้","กก.",55,60,-36.84,"ตลาดผลไม้ฤดูกาล"],
+          ["ฝรั่งกิมจู เบอร์ใหญ่","ผลไม้","กก.",38,40,0,"ตลาดผลไม้รวม"],
+          ["เงาะโรงเรียน (คละ)","ผลไม้","กก.",20,23,0,"ตลาดผลไม้ฤดูกาล"],
+          ["ชมพู่ทับทิมจันทร์ เบอร์ใหญ่","ผลไม้","กก.",75,80,0,"ตลาดผลไม้รวม"],
+          ["มังคุดมัน เบอร์ใหญ่","ผลไม้","กก.",30,30,-25,"ตลาดผลไม้ฤดูกาล"],
+          ["กล้วยน้ำว้า เบอร์กลาง","ผลไม้","หวี",28,30,0,"ตลาดผลไม้ฤดูกาล"],
+          ["ลำไยอีดอ เบอร์ใหญ่","ผลไม้","กก.",35,38,-15.56,"ตลาดผลไม้ฤดูกาล"]
+        ]
+      }
+    },
+
+    /* -------- แหล่ง 3: กรมการค้าภายใน (ตลาดสี่มุมเมือง) -------- */
+    simummuang:{
+      label:"กรมการค้าภายใน (ตลาดสี่มุมเมือง)",
+      note:"ราคาขายส่งออนไลน์ (simummuangonline.com). แสดง 'ล็อตที่ซื้อขายมากที่สุด' ต่อชนิดพืช (จำนวนผู้ขายสูงสุด) พร้อมช่วงราคา ต่ำ/กลาง/สูง. หมายเหตุ: ชุดข้อมูลทดสอบ 3 หมวด.",
+      type:"simummuang",
+      weeks:{
+        "2026-07-27":[
+          // product, group(category), unit, min, median, max, sellers
+          ["กะหล่ำดาว","กะหล่ำปลี","1 กก./ถุง",100,105,110,2],
+          ["กะหล่ำปลีขาวหนัก","กะหล่ำปลี","5 กก./ถุง",85,140,225,31],
+          ["กะหล่ำปลีขาวเบา","กะหล่ำปลี","5 กก./ถุง",70,100,225,31],
+          ["กะหล่ำปลีม่วงจีน","กะหล่ำปลี","1 กก./ถุง",29,40,50,13],
+          ["กะหล่ำปลีหัวใจจีน","กะหล่ำปลี","1 กก./ถุง",40,40,40,3],
+          ["กะหล่ำปลีเขียวหนัก","กะหล่ำปลี","5 กก./ถุง",120,160,175,5],
+          ["กะหล่ำปลีเขียวเบา","กะหล่ำปลี","5 กก./ถุง",95,125,225,42],
+          ["กะหล่ำปลีแขนง","กะหล่ำปลี","5 กก./ถุง",500,600,650,7],
+          ["กะหล่ำปลีแบน","กะหล่ำปลี","15 กก./ถุง",240,255,300,3],
+          ["คะน้าต้น","คะน้า","5 กก./ถุง",100,150,280,40],
+          ["คะน้ายอด","คะน้า","5 กก./ถุง",88,150,350,34],
+          ["คะน้าฮ่องกง (จีน)","คะน้า","1 กก./ถุง",100,120,130,6],
+          ["คะน้าฮ่องกง (ไทย)","คะน้า","5 กก./ถุง",95,130,200,14],
+          ["แขนงคะน้า","คะน้า","5 กก./ถุง",320,350,400,7],
+          ["แขนงตุ้ม","คะน้า","1 กก./ถุง",120,120,120,1],
+          ["กล้วยน้ำว้า ขาวนวล","กล้วย","10 หวี/ถุง",250,350,500,15],
+          ["กล้วยน้ำว้ามะลิอ่อง","กล้วย","10 หวี/ถุง",250,375,500,6],
+          ["กล้วยน้ำว้านวลจันทร์","กล้วย","1 หวี/หวี",38,38,38,1],
+          ["กล้วยไข่","กล้วย","10 หวี/ถุง",250,325,450,6],
+          ["กล้วยเล็บมือนาง","กล้วย","10 หวี/ถุง",200,250,280,4],
+          ["กล้วยหอมทอง","กล้วย","1 หวี/ถุง",100,100,100,1],
+          ["กล้วยหอมทองคัดพิเศษ","กล้วย","1 หวี/ถุง",120,125,130,2],
+          ["หัวปลี","กล้วย","10 กก./ถุง",120,150,200,5],
+          ["ใบตองกล้วยน้ำว้า","กล้วย","1 กก./ถุง",25,35,40,3],
+          ["หยวกกล้วย","กล้วย","1 กก./ถุง",50,50,50,1]
+        ]
+      }
+    }
+  },
+
+  /* -------- เตือนภัยการผลิต (กรมวิชาการเกษตร) -------- */
+  warning:{
+    "2026-07-22_to_2026-08-04":{
+      label:"22 ก.ค. – 4 ส.ค. 2569",
+      weather:"อากาศร้อน มีฝนตก และฝนตกหนักบางพื้นที่ — เอื้อต่อการระบาดของแมลงปากดูด (เพลี้ยไฟ/แมลงหวี่ขาว) และโรคจากเชื้อรา/ไวรัส",
+      crops:[
+        {crop:"กระเจี๊ยบเขียว", stage:"ทุกระยะการเจริญเติบโต", threats:[
+          {name:"แมลงหวี่ขาวยาสูบ", symptom:"ตัวอ่อนและตัวเต็มวัยดูดกินน้ำเลี้ยงบริเวณใบ และเป็นพาหะนำโรคที่เกิดจากเชื้อไวรัส", prevention:"พ่นสารเมื่อพบการระบาด เช่น บูโพรเฟซิน 25% WP (40 ก./น้ำ 20 ล.) หรือ อิมิดาโคลพริด 10% SL (20 มล./น้ำ 20 ล.)"}
+        ]},
+        {crop:"พืชตระกูลแตง", stage:"ทุกระยะการเจริญเติบโต", threats:[
+          {name:"เพลี้ยไฟฝ้าย", symptom:"ดูดกินน้ำเลี้ยง ทำให้ใบมีรอยแผลสีน้ำตาล ใบแห้ง ยอด ดอก ตาอ่อนไม่เจริญ หากขาดน้ำร่วมด้วยอาจทำให้พืชตาย", prevention:"พ่นเมื่อพบเพลี้ยไฟ > 5 ตัว/ยอด เช่น สไปนีโทแรม 12% SC, ไซแอนทรานิลิโพรล 10% OD, ฟิโพรนิล 5% SC, อิมาเมกตินเบนโซเอต 1.92% EC — สลับกลุ่มสารทุก 14 วัน"},
+          {name:"ด้วงเต่าแตงแดง", symptom:"แทะกัดกินใบและยอด หากระบาดรุนแรงทำให้ต้นชะงักการทอดยอด ตัวอ่อนกัดกินรากพืช", prevention:"เก็บทำลายด้วยมือช่วงเช้า, ถอนต้นหลังเก็บเกี่ยว; ใช้สาร คาร์บาริล 85% WP (30 ก.), โทลเฟนไพแรด 16% EC หรือ ไซแอนทรานิลิโพรล 10% OD"},
+          {name:"โรคใบด่าง (เชื้อไวรัส Tospovirus)", symptom:"ใบด่างเหลืองหรือด่างสลับจุดเหลืองเป็นวง ใบยอดบิดเบี้ยวผิดรูป ผิวใบขรุขระ ผลเล็กลงและผิดรูป", prevention:"กำจัดวัชพืช, ถอนต้นเป็นโรคไปทำลาย, ทำความสะอาดอุปกรณ์; ควบคุมเพลี้ยไฟซึ่งเป็นพาหะ และปลูกพืชหมุนเวียน"}
+        ]},
+        {crop:"มะเขือเปราะ", stage:"ทุกระยะการเจริญเติบโต", threats:[
+          {name:"แมลงหวี่ขาวยาสูบ", symptom:"ดูดกินน้ำเลี้ยงบริเวณใบ และเป็นพาหะนำเชื้อไวรัสสาเหตุโรคใบหงิกเหลืองมะเขือ ทำให้ผลผลิตลดลง", prevention:"รองก้นหลุมด้วยไดโนทีฟูแรน 1% G (2 ก./หลุม) คุมได้ ~45 วัน; พ่น บูโพรเฟซิน 40% SC, ฟลอนิคามิด 50% WG หรือ สไปโรเตตระแมท 15% OD ทุก 5 วัน"},
+          {name:"โรคใบหงิกเหลืองมะเขือ (TYLCV)", symptom:"ใบยอด/ใบอ่อนหดย่นหงิกสีเหลือง ขอบใบม้วนงอ ต้นแคระแกร็น ไม่ติดผลหรือผลบิดเบี้ยวเล็กผิดปกติ", prevention:"ใช้พันธุ์ต้านทาน, คัดกล้าแข็งแรง, กำจัดวัชพืชและแมลงพาหะ, ถอนต้นเป็นโรคไปทำลาย, ไม่ปลูกซ้ำพืชอาศัย"}
+        ]},
+        {crop:"พืชตระกูลส้ม (มะนาว มะกรูด ส้มโอ ส้มเขียวหวาน)", stage:"ทุกระยะการเจริญเติบโต", threats:[
+          {name:"โรคแคงเกอร์ (แบคทีเรีย Xanthomonas citri)", symptom:"แผลจุดฉ่ำน้ำนูนสีเหลืองอ่อนคล้ายฟองน้ำบนใบ กิ่ง และผล ต่อมาแข็งเป็นสีน้ำตาล มีวงเหลืองล้อมรอบ ใบเหลืองร่วงก่อนกำหนด", prevention:"เลือกกิ่งพันธุ์ปลอดโรค, ตัดแต่งส่วนเป็นโรคไปทำลาย, พ่นสารกลุ่มทองแดง (คอปเปอร์ออกซีคลอไรด์/คอปเปอร์ไฮดรอกไซด์) ทุก 7-10 วัน และกำจัดหนอนชอนใบ"}
+        ]},
+        {crop:"ทุเรียน", stage:"ผลแก่ – เก็บเกี่ยว", threats:[
+          {name:"โรคผลเน่า (เชื้อรา Phytophthora palmivora)", symptom:"จุดแผลสีน้ำตาลดำบนผล ขยายลุกลามตามการสุก ในความชื้นสูงพบเส้นใยสีขาว ผลเน่าร่วงก่อนกำหนด", prevention:"ตัดผลเป็นโรคทิ้ง, พ่นเมทาแลกซิล 25% WP หรือ ฟอสอีทิล-อะลูมิเนียม 80% WP ทุก 7-10 วัน (หยุดก่อนเก็บ 15 วัน); ป้องกันโรครากเน่าโคนเน่าไปพร้อมกัน"},
+          {name:"เพลี้ยไฟพริก", symptom:"ดูดกินน้ำเลี้ยงส่วนอ่อน ทำให้ยอด/ใบอ่อนชะงักโค้งแห้งหงิกงอ ดอกแห้งร่วง หนามผลเป็นแผลปลายแห้ง ผลไม่สมบูรณ์", prevention:"สำรวจระยะแตกใบอ่อน-ดอก-ผลอ่อน; พ่นเมื่อพบเฉลี่ย > 1 ตัว/ยอด เช่น อิมิดาโคลพริด 10% SL หรือ ฟิโพรนิล 5% SC (สลับสารกันดื้อ)"},
+          {name:"เพลี้ยไก่แจ้ทุเรียน", symptom:"ดูดกินน้ำเลี้ยงใบอ่อน ทำให้ใบเป็นจุดเหลือง หงิกงอ ใบแห้งร่วง มีสารเหนียวสีขาวปกคลุมทำให้เกิดราดำ", prevention:"พ่นในระยะแตกใบอ่อนทุก 7-10 วัน เช่น ไทอะมีทอกแซม 25% WG, ไดโนทีฟูแรน 10% WP หรือ อิมิดาโคลพริด 70% WG"}
+        ]},
+        {crop:"มะพร้าว", stage:"ทั้งที่ยังไม่ให้ผลและให้ผลแล้ว", threats:[
+          {name:"หนอนหัวดำมะพร้าว", symptom:"ตัวหนอนแทะกินผิวใต้ทางใบ สร้างอุโมงค์ใยคลุมลำตัว ใบแห้งเป็นสีน้ำตาล หากรุนแรงต้นอาจตาย", prevention:"ตัดทางใบที่ถูกทำลายไปเผา/ฝัง, ใช้เชื้อ Bt (80-100 มล./น้ำ 20 ล.), ปล่อยแตนเบียน Goniozus/Brachymeria; รุนแรงพ่น/ฉีดสารเข้าลำต้นตามคำแนะนำกรมวิชาการเกษตร"},
+          {name:"แมลงดำหนามมะพร้าว", symptom:"ตัวอ่อน/ตัวเต็มวัยอาศัยในใบอ่อนที่ยังไม่คลี่และแทะกินผิวใบ ใบคลี่ออกเป็นสีน้ำตาล ยอดขาวโพลน (มะพร้าวหัวหงอก)", prevention:"ไม่เคลื่อนย้ายต้นพันธุ์จากแหล่งระบาด, ปล่อยแตนเบียน Asecodes/Tetrastichus; ต้นเล็กใช้ อิมิดาโคลพริด/ไทอะมีทอกแซม/ไดโนทีฟูแรน ราดยอด"},
+          {name:"โรคใบจุดสีเทา (เชื้อรา Pestalotiopsis palmarum)", symptom:"จุดเล็กบนใบขยายเป็นแผลสีเทาขอบน้ำตาล มีวงเหลืองล้อมรอบ หากรุนแรงใบไหม้แห้งตาย", prevention:"ตัดส่วนเป็นโรคไปทำลาย; พ่นแมนโคเซบ 80% WP, คลอโรทาโลนิล 75% WP หรือ คาร์เบนดาซิม 50% SC"}
+        ]},
+        {crop:"มังคุด", stage:"พัฒนาผล – เก็บผลผลิต", threats:[
+          {name:"โรคใบจุด (เชื้อรา Pestalotiopsis flagisetula)", symptom:"จุดแผลเล็กสีน้ำตาลบนใบ ขยายใหญ่ขอบสีม่วงเข้ม มีจุดดำเล็ก ๆ ของเชื้อ ใบบิดเบี้ยวไหม้ร่วง กระทบคุณภาพผล", prevention:"ตัดแต่งทรงพุ่มให้โปร่ง กำจัดวัชพืชลดความชื้น; พ่นคาร์เบนดาซิม 50% WP, แมนโคเซบ 80% WP หรือ คอปเปอร์ออกซีคลอไรด์ ทุก 7-10 วัน"},
+          {name:"อาการเนื้อแก้วและยางไหล", symptom:"เกิดจากได้รับน้ำมากเกินไป เนื้อผลเป็นสีใสฉ่ำน้ำ หรือมียางสีเหลืองไหลในผล ผิวเปลือกอาจร้าว", prevention:"ให้น้ำสม่ำเสมอทุก 3 วันเมื่อฝนไม่ตก, ถ้าฝนตกหนักให้ระบายน้ำออกจากแปลง; บำรุงต้นให้สมบูรณ์"}
+        ]},
+        {crop:"กาแฟ", stage:"พัฒนาผล", threats:[
+          {name:"โรคใบจุดตากบ (เชื้อรา Cercospora coffeicola)", symptom:"แผลจุดสีน้ำตาลบนใบ ขยายเป็นวงซ้อน กลางแผลสีเทา/ขาว ขอบน้ำตาลแดง มีวงเหลืองล้อมรอบ ใบร่วง ผลเน่าสุกก่อนกำหนด", prevention:"ไม่ปลูกชิดเกินไปและจัดร่มเงา, ใส่ปุ๋ยไนโตรเจน-โพแทสเซียมให้พอเพียง; พ่นแมนโคเซบ 80% WP, เบโนมิล 50% WP หรือ คอปเปอร์ไฮดรอกไซด์ 77% WP"},
+          {name:"โรคแอนแทรคโนส / กิ่งแห้ง / ผลแห้ง (เชื้อรา Colletotrichum)", symptom:"จุดสีน้ำตาลบนใบขยายทำให้ใบไหม้, กิ่งเขียวไหม้ใบเหลืองร่วงกิ่งแห้ง, ผลเป็นจุดน้ำตาลเข้มยุบตัวเปลี่ยนเป็นสีดำแต่ยังติดกิ่ง", prevention:"รักษาร่มเงาและความชื้นเหมาะสม, ตัดแต่งส่วนเป็นโรคไปทำลาย, พ่นแมนโคเซบ/เบโนมิล, สำรวจและกำจัดมอดเจาะผล, บำรุงต้นหลังเก็บเกี่ยว"}
+        ]},
+        {crop:"อ้อย", stage:"แตกกอ", threats:[
+          {name:"แมลงนูนหลวง", symptom:"ตัวหนอนกัดกินรากอ้อยเป็นอาหาร ใบอ้อยเหลืองแล้วแห้งตายผิดปกติทั้งกอ ต้นถอนหลุดง่ายเพราะรากถูกทำลาย เข้าทำลายเป็นหย่อม", prevention:"สำรวจแปลงสม่ำเสมอ ขุดเก็บตัวหนอนไปทำลาย; ใช้ฟิโพรนิล 5% SC (80 มล./น้ำ 20 ล.) พ่นตามร่องที่เปิดหน้าดินข้างกอแล้วกลบดิน"}
+        ]},
+        {crop:"ถั่วเหลือง", stage:"ปลูกใหม่ อายุไม่เกิน 14 วัน", threats:[
+          {name:"โรครากเน่าและลำต้นเน่า (เชื้อรา Sclerotium rolfsii)", symptom:"ใบเหลืองเหี่ยว ยืนต้นตาย โคนต้นมีแผลสีน้ำตาลและเส้นใยหยาบสีขาว รวมตัวเป็นเม็ดคล้ายเมล็ดผักกาด เข้าทำลายได้ทุกระยะ", prevention:"ไถพลิกดินตากแดด, ใส่ปูนขาว/โดโลไมท์ปรับดิน, ระบายน้ำดี, จัดระยะปลูกโปร่ง; ราดคาร์บอกซิน 75% WP หรือ โทลโคลฟอส-เมทิล 50% WP ทุก 5 วัน"},
+          {name:"หนอนแมลงวันเจาะต้นถั่ว", symptom:"เข้าทำลายตั้งแต่ระยะต้นกล้า หนอนชอนไชเข้ากัดกินเนื้อเยื่อไส้กลางลำต้น ทำให้ผลผลิตลดลงมากกว่า 40%", prevention:"คลุกเมล็ดก่อนปลูกด้วยอิมิดาโคลพริด 70% WS (2 ก./เมล็ด 1 กก.); หรือพ่นฟิโพรนิล 5% SC / ไตรอะโซฟอส 40% EC 2 ครั้ง ห่างกัน 7 วัน เริ่มเมื่อใบจริงคู่แรกคลี่"}
+        ]}
+      ]
+    }
+  }
+};
+
+/* ========================= LOGIC ========================= */
+const $ = id => document.getElementById(id);
+const fmt = n => (n===null||n===undefined||isNaN(n)) ? "-" :
+  Number(n).toLocaleString('th-TH',{maximumFractionDigits:2});
+document.getElementById('lastUpdate').textContent = "ประมวลผลข้อมูล ณ วันที่ 28 ก.ค. 2569";
+
+/* ---- tabs ---- */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  $('panel-'+t.dataset.tab).classList.add('active');
+});
+
+/* ---- normalize rows per source into common objects with perKg ---- */
+function normalize(srcKey, week){
+  const src = DATA.price[srcKey];
+  const rows = (src.weeks[week]||[]);
+  return rows.map(r=>{
+    if(src.type==="oae"){
+      const [product,group,unit,weekly,avg]=r;
+      return {product,group,unit,rep:avg,low:Math.min(...weekly),high:Math.max(...weekly),
+        perKg: unit==="บาท/กก."? avg : null, extra:null};
+    }
+    if(src.type==="talaadthai"){
+      const [product,group,unit,min,max,chg,market]=r;
+      const mid=(min+max)/2;
+      return {product,group,unit:unit+" (ต่ำ–สูง)",rep:mid,low:min,high:max,
+        perKg: unit==="กก."? mid : null, change:chg, market, extra:market};
+    }
+    if(src.type==="simummuang"){
+      const [product,group,unit,min,med,max,sellers]=r;
+      // per-kg estimate when unit is "N กก./..."
+      let perKg=null; const m=unit.match(/^([\d.]+)\s*กก\./); if(m) perKg=med/parseFloat(m[1]);
+      return {product,group,unit,rep:med,low:min,high:max,perKg,sellers,extra:sellers+" ผู้ขาย"};
+    }
+  });
+}
+
+/* ---- price panel state & render ---- */
+let sortState={key:'rep',dir:-1};
+let chart=null;
+
+function initPrice(){
+  const sel=$('fSource'); sel.innerHTML='';
+  Object.keys(DATA.price).forEach(k=>{
+    const o=document.createElement('option'); o.value=k; o.textContent=DATA.price[k].label; sel.appendChild(o);
+  });
+  sel.onchange=()=>{fillPeriods();renderPrice();};
+  $('fPeriod').onchange=renderPrice;
+  $('fCat').onchange=renderPrice;
+  $('fSearch').oninput=renderPrice;
+  fillPeriods(); renderPrice();
+}
+function fillPeriods(){
+  const src=DATA.price[$('fSource').value];
+  const ps=Object.keys(src.weeks).sort().reverse();
+  const sel=$('fPeriod'); sel.innerHTML='';
+  ps.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+  // categories
+  fillCats();
+}
+function fillCats(){
+  const rows=normalize($('fSource').value,$('fPeriod').value);
+  const cats=[...new Set(rows.map(r=>r.group))];
+  const sel=$('fCat'); sel.innerHTML='<option value="__all">ทั้งหมด</option>';
+  cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;sel.appendChild(o);});
+}
+function currentRows(){
+  let rows=normalize($('fSource').value,$('fPeriod').value);
+  const cat=$('fCat').value, q=$('fSearch').value.trim();
+  if(cat && cat!=="__all") rows=rows.filter(r=>r.group===cat);
+  if(q) rows=rows.filter(r=>r.product.includes(q));
+  rows.sort((a,b)=>{
+    let x=a[sortState.key],y=b[sortState.key];
+    if(typeof x==="string"){return sortState.dir*x.localeCompare(y,'th');}
+    x=x??-Infinity;y=y??-Infinity; return sortState.dir*(x-y);
+  });
+  return rows;
+}
+
+function renderPrice(){
+  const srcKey=$('fSource').value, src=DATA.price[srcKey];
+  $('srcNote').textContent=src.note;
+  fillCats && (function(){ // keep category list in sync w/ period but preserve selection
+    const prev=$('fCat').value; fillCats();
+    if([...$('fCat').options].some(o=>o.value===prev)) $('fCat').value=prev;
+  })();
+  const rows=currentRows();
+  $('rowCount').textContent=rows.length+" รายการ";
+
+  // KPIs (per-kg subset for price stats)
+  const kg=rows.filter(r=>r.perKg!=null);
+  const kgVals=kg.map(r=>r.perKg);
+  const avg=kgVals.length? kgVals.reduce((a,b)=>a+b,0)/kgVals.length : null;
+  let hi=null,lo=null;
+  if(kg.length){hi=kg.reduce((a,b)=>a.perKg>b.perKg?a:b);lo=kg.reduce((a,b)=>a.perKg<b.perKg?a:b);}
+  $('kpis').innerHTML=`
+    <div class="kpi"><div class="v">${rows.length}</div><div class="l">ชนิดพืช/สินค้าที่แสดง</div></div>
+    <div class="kpi"><div class="v">${avg!=null?fmt(avg):'-'}<small>บาท/กก. (เฉลี่ยเฉพาะสินค้าหน่วย กก.)</small></div><div class="l">ราคาเฉลี่ยต่อกิโลกรัม</div></div>
+    <div class="kpi hi"><div class="v">${hi?fmt(hi.perKg):'-'}<small>${hi?hi.product:''}</small></div><div class="l">แพงสุด (บาท/กก.)</div></div>
+    <div class="kpi lo"><div class="v">${lo?fmt(lo.perKg):'-'}<small>${lo?lo.product:''}</small></div><div class="l">ถูกสุด (บาท/กก.)</div></div>`;
+
+  renderTable(rows,src.type);
+  renderChart(rows,src.type);
+}
+
+function renderTable(rows,type){
+  const thead=$('priceThead'), tbody=$('priceTbody');
+  let cols;
+  if(type==="oae") cols=[['product','ชนิดพืช/สินค้า'],['group','หมวด'],['unit','หน่วย'],['low','ต่ำสุด'],['rep','เฉลี่ย'],['high','สูงสุด']];
+  else if(type==="talaadthai") cols=[['product','สินค้า'],['group','หมวด'],['low','ราคาต่ำสุด'],['high','ราคาสูงสุด'],['change','%เปลี่ยน'],['market','ตลาด']];
+  else cols=[['product','สินค้า'],['group','หมวด'],['unit','หน่วย'],['low','ต่ำ'],['rep','กลาง'],['high','สูง'],['sellers','ผู้ขาย']];
+  thead.innerHTML='<tr>'+cols.map(c=>`<th data-k="${c[0]}">${c[1]}</th>`).join('')+'</tr>';
+  thead.querySelectorAll('th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k; sortState.dir = (sortState.key===k? -sortState.dir : -1); sortState.key=k; renderPrice();
+  });
+  tbody.innerHTML = rows.length? rows.map(r=>{
+    return '<tr>'+cols.map(c=>{
+      const k=c[0]; let v=r[k];
+      if(k==='product') return `<td>${v}</td>`;
+      if(k==='group') return `<td class="cat-badge">${v}</td>`;
+      if(k==='market') return `<td>${v||'-'}</td>`;
+      if(k==='unit') return `<td>${v}</td>`;
+      if(k==='change'){
+        const cls=v>0?'up':v<0?'down':'flat'; const s=v>0?'▲':v<0?'▼':'—';
+        return `<td class="num"><span class="chip ${cls}">${s} ${fmt(Math.abs(v))}%</span></td>`;
+      }
+      return `<td class="num">${fmt(v)}</td>`;
+    }).join('')+'</tr>';
+  }).join('') : `<tr><td colspan="${cols.length}" class="empty">ไม่พบข้อมูลตามเงื่อนไข</td></tr>`;
+}
+
+function renderChart(rows,type){
+  const kg=rows.filter(r=>r.perKg!=null).sort((a,b)=>b.perKg-a.perKg);
+  let useKg=kg.length>=Math.max(3,rows.length*0.4);
+  let data = useKg? kg : rows.slice().sort((a,b)=>b.rep-a.rep);
+  data=data.slice(0,25);
+  $('chartTitle').textContent = useKg? "ราคาต่อกิโลกรัม (โดยประมาณ) — เรียงมาก→น้อย" : "ราคา (ตามหน่วยของแต่ละสินค้า)";
+  $('chartNote').textContent = useKg
+    ? "* แท่งกราฟคือราคาต่อกิโลกรัมโดยประมาณ เพื่อให้เปรียบเทียบข้ามสินค้าได้ (สินค้าหน่วยอื่น เช่น กระสอบ/หวี ไม่แสดงในกราฟ)"
+    : "* หน่วยแตกต่างกันตามสินค้า ควรดูรายละเอียดในตารางประกอบ";
+  const labels=data.map(r=>r.product);
+  const vals=data.map(r=>useKg?r.perKg:r.rep);
+  if(chart) chart.destroy();
+  chart=new Chart($('priceChart'),{
+    type:'bar',
+    data:{labels,datasets:[{label:useKg?'บาท/กก.':'ราคา',data:vals,
+      backgroundColor:'rgba(31,122,61,.78)',borderColor:'#155a2c',borderWidth:1,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:c=>{
+          const r=data[c.dataIndex];
+          let s=' '+fmt(c.parsed.x)+(useKg?' บาท/กก.':' ('+r.unit+')');
+          if(r.extra) s+=' · '+r.extra;
+          return s;
+        }}}},
+      scales:{x:{beginAtZero:true,ticks:{callback:v=>fmt(v)}},y:{ticks:{font:{size:11}}}}}
+  });
+}
+
+/* ---- warning panel ---- */
+function initWarn(){
+  const sel=$('wPeriod'); sel.innerHTML='';
+  Object.keys(DATA.warning).forEach(k=>{
+    const o=document.createElement('option');o.value=k;o.textContent=DATA.warning[k].label;sel.appendChild(o);
+  });
+  sel.onchange=()=>{fillCrops();renderWarn();};
+  $('wCrop').onchange=renderWarn;
+  fillCrops(); renderWarn();
+}
+function fillCrops(){
+  const w=DATA.warning[$('wPeriod').value];
+  const sel=$('wCrop'); sel.innerHTML='<option value="__all">ทุกพืช</option>';
+  w.crops.forEach(c=>{const o=document.createElement('option');o.value=c.crop;o.textContent=c.crop;sel.appendChild(o);});
+}
+function renderWarn(){
+  const w=DATA.warning[$('wPeriod').value];
+  $('weatherBox').innerHTML=`<div class="ico">🌦️</div><div><b>สภาพอากาศช่วงนี้:</b> ${w.weather}</div>`;
+  const pick=$('wCrop').value;
+  const crops = pick==="__all"? w.crops : w.crops.filter(c=>c.crop===pick);
+  $('cropGrid').innerHTML = crops.map(c=>`
+    <div class="crop-card">
+      <div class="head"><h3>🌿 ${c.crop}</h3><span class="stage">ระยะ: ${c.stage}</span></div>
+      <div class="body">
+        ${c.threats.map(t=>`
+          <div class="threat">
+            <div class="tname"><span class="dot"></span>${t.name}</div>
+            <div class="lab">อาการ / ลักษณะ</div><p>${t.symptom}</p>
+            <div class="lab">แนวทางป้องกัน–แก้ไข</div><p>${t.prevention}</p>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+initPrice();
+initWarn();
+</script>
+</body>
+</html>
