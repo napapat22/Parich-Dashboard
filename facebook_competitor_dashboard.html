@@ -94,6 +94,8 @@
   <div class="tab-page" id="page-overview">
     <div class="section-title">📌 Key Performance Indicators</div>
     <div class="kpis" id="kpis"></div>
+    <div class="section-title">📊 เปรียบเทียบสัปดาห์ปัจจุบัน vs สัปดาห์ก่อนหน้า (Week over Week)</div>
+    <div class="kpis" id="wowCompare"></div>
     <div class="grid-2">
       <div class="card"><h2>🎯 Share of Voice</h2><p class="hint">สัดส่วน engagement ของแต่ละแบรนด์ในช่วงที่เลือก</p><div class="chart-wrap"><canvas id="chartSov"></canvas></div></div>
       <div class="card"><h2>📈 Engagement รายสัปดาห์ (Week over Week)</h2><p class="hint">แสดงทุกสัปดาห์เสมอ — แท็บใหม่จะถูกเพิ่มอัตโนมัติ</p><div class="chart-wrap"><canvas id="chartWoW"></canvas></div></div>
@@ -186,7 +188,21 @@ const DISPLAY = {
   'puitrakratai': 'ตรากระต่าย',
   'PuiMabin': 'ม้าบิน',
 };
-const PALETTE = ['#7c6cf2','#f26c8d','#38bdf8','#a78bfa','#4ade80','#fb923c','#2dd4bf','#facc15','#f87171','#c084fc'];
+// สีคงที่ของแต่ละแบรนด์ — Parich ใช้สีส้มตาม CI ของแบรนด์
+// ตรามงกุฎ (เดิมใช้สีส้ม) ย้ายไปใช้สีชมพูแทน เพื่อไม่ให้ชนกับ Parich
+const BRAND_COLORS = {
+  'Parich': '#fb923c',
+  'DTW Hydroponic': '#7c6cf2',
+  'Yara Thailand': '#38bdf8',
+  'ดวงตะวันเพชร': '#a78bfa',
+  'ตรากระต่าย': '#4ade80',
+  'ตรามงกุฎ': '#f26c8d',
+  'ท็อปวัน': '#2dd4bf',
+  'ม้าบิน': '#facc15',
+  'หัววัว-คันไถ (OX)': '#f87171',
+};
+// ใช้เป็นสีสำรองสำหรับแบรนด์ใหม่ที่ยังไม่มีใน BRAND_COLORS เท่านั้น (ไม่มีสีส้มปนอยู่ กันชนกับ Parich)
+const PALETTE = ['#7c6cf2','#38bdf8','#4ade80','#facc15','#f87171','#c084fc','#2dd4bf','#a78bfa','#f26c8d','#94a3b8'];
 const brandColor = {};
 
 let weeks = [];            // [{name, label, posts:[...]}] ใหม่สุดก่อน
@@ -252,7 +268,7 @@ async function loadAllTabs() {
   }).filter(w => w.posts.length > 0);
   parsed.sort((a, b) => new Date(b.name) - new Date(a.name));
   const brands = [...new Set(parsed.flatMap(w => w.posts.map(p => p.brand)))].sort();
-  brands.forEach((b, i) => brandColor[b] = brandColor[b] || PALETTE[i % PALETTE.length]);
+  brands.forEach((b, i) => brandColor[b] = brandColor[b] || BRAND_COLORS[b] || PALETTE[i % PALETTE.length]);
   return parsed;
 }
 
@@ -321,6 +337,44 @@ function renderKpis(posts) {
   ];
   document.getElementById('kpis').innerHTML = kpis.map(([l, v, s, c]) =>
     `<div class="kpi" style="border-top-color:${c}"><div class="label">${l}</div><div class="value" style="color:${c}">${v}</div><div class="sub">${s}</div></div>`).join('');
+}
+
+// เปรียบเทียบสัปดาห์ล่าสุด vs สัปดาห์ก่อนหน้า (ไม่ผูกกับตัวกรองสัปดาห์ — ใช้ 2 สัปดาห์ล่าสุดเสมอ ผูกกับตัวกรองแบรนด์)
+function renderWowCompare() {
+  const el = document.getElementById('wowCompare');
+  if (weeks.length < 2) { el.innerHTML = `<div class="kpi"><div class="sub">ต้องมีข้อมูลอย่างน้อย 2 สัปดาห์ถึงจะเปรียบเทียบ Week over Week ได้</div></div>`; return; }
+  const filterB = ps => activeBrand === 'ALL' ? ps : ps.filter(p => p.brand === activeBrand);
+  const cur = filterB(weeks[0].posts), prev = filterB(weeks[1].posts);
+  const stat = ps => {
+    const n = ps.length;
+    const likes = ps.reduce((s, p) => s + p.reactions, 0);
+    const comments = ps.reduce((s, p) => s + p.comments, 0);
+    const shares = ps.reduce((s, p) => s + p.shares, 0);
+    return { posts: n, total: likes + comments + shares, avg: n ? Math.round((likes + comments + shares) / n) : 0, likes, comments, shares };
+  };
+  const c = stat(cur), p = stat(prev);
+  const deltaHtml = (a, b) => {
+    if (b === 0) return a === 0 ? `<span style="color:var(--muted)">±0%</span>` : `<span class="delta-up">▲ ใหม่</span>`;
+    const d = Math.round(100 * (a - b) / b);
+    if (d === 0) return `<span style="color:var(--muted)">±0%</span>`;
+    return d > 0 ? `<span class="delta-up">▲ +${d}%</span>` : `<span class="delta-down">▼ ${d}%</span>`;
+  };
+  const METRICS = [
+    ['📝 จำนวนโพสต์', 'posts', v => fmtFull(v), '#7c6cf2'],
+    ['🔥 Total Engagement', 'total', fmt, '#34d399'],
+    ['⚡ Avg Eng/โพสต์', 'avg', fmt, '#facc15'],
+    ['👍 Total Likes', 'likes', fmt, '#f26c8d'],
+    ['💬 Total Comments', 'comments', fmt, '#38bdf8'],
+    ['🔁 Total Shares', 'shares', fmt, '#4ade80'],
+  ];
+  el.innerHTML =
+    `<div class="kpi" style="border-top-color:#9d8cff"><div class="label">ช่วงที่เปรียบเทียบ</div><div class="value" style="font-size:15px;color:#9d8cff">${esc(weeks[0].label)}</div><div class="sub">เทียบกับสัปดาห์ก่อนหน้า: ${esc(weeks[1].label)}${activeBrand !== 'ALL' ? ` · เฉพาะ ${esc(activeBrand)}` : ''}</div></div>` +
+    METRICS.map(([label, key, f, color]) => `
+      <div class="kpi" style="border-top-color:${color}">
+        <div class="label">${label}</div>
+        <div class="value" style="color:${color}">${f(c[key])}</div>
+        <div class="sub">สัปดาห์ก่อน ${f(p[key])} · ${deltaHtml(c[key], p[key])}</div>
+      </div>`).join('');
 }
 
 function renderSov(posts) {
@@ -748,6 +802,7 @@ function renderAll() {
   const posts = currentPosts();
   renderHeader(posts);
   renderKpis(posts);
+  renderWowCompare();
   renderSov(posts);
   renderWoW();
   renderDaily(posts);
